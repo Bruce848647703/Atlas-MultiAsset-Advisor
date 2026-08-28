@@ -1,0 +1,42 @@
+# DeepSeek harness configuration.
+# Two modes:
+#   api   -> DeepSeek official endpoint (https://api.deepseek.com)
+#   local -> any OpenAI-compatible server (vLLM/Ollama serving
+#            DeepSeek-R1-Distill models) for local training loops.
+llm:
+  provider: api              # api | local
+  api_base: "https://api.deepseek.com"
+  api_key_env: "DEEPSEEK_API_KEY"
+  model_chat: "deepseek-chat"
+  model_reasoner: "deepseek-reasoner"
+  temperature: 0.3
+  max_tokens: 2048
+  local:
+    api_base: "http://127.0.0.1:8000/v1"
+    api_key_env: "LOCAL_LLM_API_KEY"
+    model_chat: "deepseek-r1-distill-7b"
+    model_reasoner: "deepseek-r1-distill-7b"
+
+agent:
+  max_tool_steps: 8
+  language: "zh-CN"          # report language; charts stay en (font safety)
+  disclaimer: >-
+    本系统输出仅为基于量化模型的研究性参考，不构成任何投资建议。
+    市场有风险，投资需谨慎。请结合自身情况咨询持牌投资顾问。
+    Outputs are research references only, NOT investment advice.
+
+backtest:
+  freq: "M"                  # monthly rebalance
+  start_cost: 0.0008         # one-way cost applied on turnover
+  years: 8
+
+# Factor knowledge base (JSON library extracted from research documents).
+# Set data_dir to "" to disable; the advisor degrades gracefully.
+factors:
+  data_dir: "/home/zhuoming.wang/signal-name/data/json"
+  screen_weight: 0.35        # blend of factor screen vs expected return in
+                             # satellite allocation preference
+
+synthetic_data:
+  seed: 20240601
+  n_months: 120

@@ -1,0 +1,10 @@
+{"id": "r1", "text": "我短期看空A股，觉得要回调，但看多加密货币，想逢低布局比特币", "expect": {"risk_sign": 0, "timing": {"equity_cn": -1, "crypto": 1}, "interests": ["equity_cn", "crypto"]}}
+{"id": "r2", "text": "这笔钱是养老的，绝对不能亏，就想稳稳当当放个长期，别给我整高风险的", "expect": {"risk_sign": -1, "timing": {}, "horizon_long": true}}
+{"id": "r3", "text": "感觉市场要见顶了，想把股票减仓避险，多配点债券和黄金", "expect": {"risk_sign": 0, "timing": {"equity_cn": -1, "equity_global": -1, "crypto": -1}, "interests": ["commodity", "fixed_income"]}}
+{"id": "r4", "text": "我看好纳斯达克和比特币，想加仓，波动风险我扛得住，打算拿五年", "expect": {"risk_sign": 1, "timing": {"equity_global": 1, "crypto": 1}, "interests": ["equity_global", "crypto"], "horizon": 5}}
+{"id": "r5", "text": "这钱几个月后要用，流动性要好，千万别碰高风险的东西", "expect": {"risk_sign": -1, "timing": {}, "horizon_long": false}}
+{"id": "r6", "text": "牛市来了，满仓干，A股和币圈都上，杠杆也可以研究", "expect": {"risk_sign": 1, "timing": {"equity_cn": 1, "crypto": 1}, "interests": ["equity_cn", "crypto", "futures"]}}
+{"id": "r7", "text": "美股有点泡沫了，我打算止盈纳斯达克，换成黄金和债券稳一稳", "expect": {"risk_sign": 0, "timing": {"equity_global": -1}, "interests": ["equity_global", "commodity", "fixed_income"]}}
+{"id": "r8", "text": "刚工作攒了点钱，想稳健增值，能接受一点波动，定投个三五年", "expect": {"risk_sign": 0, "timing": {}}}
+{"id": "r9", "text": "美联储要降息了，利好债券和黄金，我想多配这两块", "expect": {"risk_sign": 0, "timing": {"commodity": 1, "fixed_income": 1}, "interests": ["fixed_income", "commodity"]}}
+{"id": "r10", "text": "加密要暴跌了，赶紧清仓币圈，全部换成货基避险", "expect": {"risk_sign": 0, "timing": {"crypto": -1}, "interests": ["crypto"]}}

@@ -1,0 +1,32 @@
+{
+  "year": 2026,
+  "page_no": 4,
+  "image_file": "data/images/2026/page_0004.png",
+  "calendar_month": "2026-01",
+  "calendar_dates": [
+    "2026-01-02"
+  ],
+  "signals": [
+    {
+      "date": "2026-01-02",
+      "signal_name_cn": "残差反转",
+      "signal_type_cn": "高频因子-动量反转类",
+      "manual_factor_name": "",
+      "formula": "St = \\sum_{t-T}^{t} (buyt - sellt) / \\sum_{t-T}^{t} |buyt - sellt|\nRet20t = a + b * St + εt",
+      "variables": [
+        {
+          "name": "buyt",
+          "description": "小单买额"
+        },
+        {
+          "name": "sellt",
+          "description": "小单卖额"
+        }
+      ],
+      "raw_text": "残差反转\n高频因子-动量反转类\n计算小单资金流强度：分子为（小单买额-小单卖额）之和，分母为其绝对值；计算大单资金流强度：分子为（小单买额-小单卖额）之和，分母为其绝对值，即：\nSt = \\sum_{t-T}^{t} (buyt - sellt) / \\sum_{t-T}^{t} |buyt - sellt|\n将反转因子（过去20日涨跌幅）与大单资金强度和小单资金强度各自做回归，得到的残差即为得到大单和小单的残差反转因子：\nRet20t = a + b * St + εt\n— 说明\n残差反转因子剥离了资金流强度对传统反转因子的影响，选股效果得到进一步提升。\n[参考文献]\n解璞恺,高鹏,2021,大单与小单资金流的alpha能力,开源证券。",
+      "confidence_note": ""
+    }
+  ],
+  "page_raw_text": "2 January 1月 冬月十四 星期五\n残差反转\n高频因子-动量反转类\n计算小单资金流强度：分子为（小单买额-小单卖额）之和，分母为其绝对值；计算大单资金流强度：分子为（小单买额-小单卖额）之和，分母为其绝对值，即：\nSt = \\sum_{t-T}^{t} (buyt - sellt) / \\sum_{t-T}^{t} |buyt - sellt|\n将反转因子（过去20日涨跌幅）与大单资金强度和小单资金强度各自做回归，得到的残差即为得到大单和小单的残差反转因子：\nRet20t = a + b * St + εt\n— 说明\n残差反转因子剥离了资金流强度对传统反转因子的影响，选股效果得到进一步提升。\n[参考文献]\n解璞恺,高鹏,2021,大单与小单资金流的alpha能力,开源证券。\nCIML\n量化投资与机器学习",
+  "warnings": []
+}

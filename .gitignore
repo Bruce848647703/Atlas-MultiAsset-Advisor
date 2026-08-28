@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+.venv/
+venv/
+data_cache/
+# runtime data (factor store, evolution state, caches) — regenerate on the fly
+data/
+# generated factor store (recreate via 自进化 / evolve_factor_library)
+data/factor_store.json
+examples/demo_outputs/
+training/sft_data/*.jsonl
+!training/sft_data/.gitkeep
+.DS_Store
+*.log

@@ -1,0 +1,278 @@
+# ============================================================
+# Asset Universe (v2, expanded)
+# Classes: cash / fixed_income / hybrid / commodity / equity_cn /
+#          equity_global / crypto / futures
+# source: etf  -> akshare fund_etf_hist_em
+#         fund -> akshare fund_open_fund_info_em (cumulative NAV)
+#         none -> synthetic only (crypto, futures, cash proxy)
+# ============================================================
+assets:
+  # ---------------- A股宽基/风格 ----------------
+  - id: csi300_etf
+    name_zh: "沪深300ETF"
+    name_en: "CSI300 ETF (CN large cap)"
+    class: equity_cn
+    source: etf
+    symbol_ak: "510300"
+    currency: CNY
+    fee: 0.0005
+
+  - id: csi500_etf
+    name_zh: "中证500ETF"
+    name_en: "CSI500 ETF (CN mid cap)"
+    class: equity_cn
+    source: etf
+    symbol_ak: "510500"
+    currency: CNY
+    fee: 0.0005
+
+  - id: gem_etf
+    name_zh: "创业板ETF"
+    name_en: "ChiNext ETF (CN growth)"
+    class: equity_cn
+    source: etf
+    symbol_ak: "159915"
+    currency: CNY
+    fee: 0.0005
+    tags: [high_beta]
+
+  - id: star50_etf
+    name_zh: "科创50ETF"
+    name_en: "STAR50 ETF (CN tech)"
+    class: equity_cn
+    source: etf
+    symbol_ak: "588000"
+    currency: CNY
+    fee: 0.0005
+    tags: [high_beta]
+
+  - id: dividend_etf
+    name_zh: "红利低波ETF"
+    name_en: "Dividend Low-Vol ETF (CN)"
+    class: equity_cn
+    source: etf
+    symbol_ak: "510880"
+    currency: CNY
+    fee: 0.0005
+    tags: [defensive]
+
+  - id: healthcare_etf
+    name_zh: "医药ETF"
+    name_en: "Healthcare ETF (CN sector)"
+    class: equity_cn
+    source: etf
+    symbol_ak: "512010"
+    currency: CNY
+    fee: 0.0006
+    tags: [sector]
+
+  - id: consumer_etf
+    name_zh: "主要消费ETF"
+    name_en: "Consumer Staples ETF (CN sector)"
+    class: equity_cn
+    source: etf
+    symbol_ak: "159928"
+    currency: CNY
+    fee: 0.0006
+    tags: [sector]
+
+  # ---------------- 海外/跨境 ----------------
+  - id: sp500_etf
+    name_zh: "标普500ETF(QDII)"
+    name_en: "S&P500 ETF (QDII)"
+    class: equity_global
+    source: etf
+    symbol_ak: "513500"
+    currency: CNY
+    fee: 0.0010
+
+  - id: nasdaq_etf
+    name_zh: "纳指100ETF(QDII)"
+    name_en: "NASDAQ100 ETF (QDII)"
+    class: equity_global
+    source: etf
+    symbol_ak: "513100"
+    currency: CNY
+    fee: 0.0010
+
+  - id: hstech_etf
+    name_zh: "恒生科技ETF"
+    name_en: "Hang Seng Tech ETF"
+    class: equity_global
+    source: etf
+    symbol_ak: "513180"
+    currency: CNY
+    fee: 0.0008
+    tags: [high_beta]
+
+  - id: nikkei_etf
+    name_zh: "日经225ETF"
+    name_en: "Nikkei225 ETF"
+    class: equity_global
+    source: etf
+    symbol_ak: "513880"
+    currency: CNY
+    fee: 0.0008
+
+  # ---------------- 固收/混合 ----------------
+  - id: bond_fund
+    name_zh: "中长期纯债基金"
+    name_en: "Medium-term pure bond fund"
+    class: fixed_income
+    source: fund
+    symbol_ak: "000914"
+    currency: CNY
+    fee: 0.0006
+    tags: [defensive]
+
+  - id: bond_etf
+    name_zh: "国债ETF"
+    name_en: "Treasury bond ETF"
+    class: fixed_income
+    source: etf
+    symbol_ak: "511010"
+    currency: CNY
+    fee: 0.0003
+    tags: [defensive]
+
+  - id: convbond_fund
+    name_zh: "二级债基(固收+)"
+    name_en: "Secondary bond fund (fixed income+)"
+    class: hybrid
+    source: fund
+    symbol_ak: "110027"
+    currency: CNY
+    fee: 0.0008
+
+  - id: money_fund
+    name_zh: "货币基金/现金管理"
+    name_en: "Money market fund"
+    class: cash
+    source: none
+    currency: CNY
+    fee: 0.0000
+    tags: [defensive, liquidity]
+
+  # ---------------- 大宗商品 ----------------
+  - id: gold_etf
+    name_zh: "黄金ETF"
+    name_en: "Gold ETF"
+    class: commodity
+    source: etf
+    symbol_ak: "518880"
+    currency: CNY
+    fee: 0.0005
+    tags: [hedge, diversifier]
+
+  - id: oil_qdii
+    name_zh: "原油基金(QDII-LOF)"
+    name_en: "Crude oil fund (QDII)"
+    class: commodity
+    source: fund
+    symbol_ak: "161129"
+    currency: CNY
+    fee: 0.0012
+    tags: [hedge]
+
+  # ---------------- 加密货币 ----------------
+  - id: btc
+    name_zh: "比特币"
+    name_en: "Bitcoin (BTC)"
+    class: crypto
+    source: none
+    symbol_ccxt: "BTC/USDT"
+    currency: USDT
+    fee: 0.0010
+    tags: [high_vol, speculative]
+
+  - id: eth
+    name_zh: "以太坊"
+    name_en: "Ethereum (ETH)"
+    class: crypto
+    source: none
+    symbol_ccxt: "ETH/USDT"
+    currency: USDT
+    fee: 0.0010
+    tags: [high_vol, speculative]
+
+  - id: sol
+    name_zh: "Solana"
+    name_en: "Solana (SOL)"
+    class: crypto
+    source: none
+    symbol_ccxt: "SOL/USDT"
+    currency: USDT
+    fee: 0.0010
+    tags: [high_vol, speculative]
+
+  - id: bnb
+    name_zh: "BNB"
+    name_en: "BNB"
+    class: crypto
+    source: none
+    symbol_ccxt: "BNB/USDT"
+    currency: USDT
+    fee: 0.0010
+    tags: [high_vol, speculative]
+
+  - id: xrp
+    name_zh: "瑞波币"
+    name_en: "XRP"
+    class: crypto
+    source: none
+    symbol_ccxt: "XRP/USDT"
+    currency: USDT
+    fee: 0.0010
+    tags: [high_vol, speculative]
+
+  - id: doge
+    name_zh: "狗狗币"
+    name_en: "Dogecoin (DOGE)"
+    class: crypto
+    source: none
+    symbol_ccxt: "DOGE/USDT"
+    currency: USDT
+    fee: 0.0012
+    tags: [high_vol, meme]
+
+  # ---------------- 期货(管理策略代理) ----------------
+  - id: comm_future
+    name_zh: "商品期货(CTA策略代理)"
+    name_en: "Commodity futures (CTA proxy)"
+    class: futures
+    source: none
+    currency: CNY
+    fee: 0.0003
+    margin: 0.10
+    tags: [leveraged, qualified_only]
+
+  - id: stock_index_future
+    name_zh: "股指期货(对冲策略代理)"
+    name_en: "Stock index futures (hedge proxy)"
+    class: futures
+    source: none
+    currency: CNY
+    fee: 0.0003
+    margin: 0.12
+    tags: [leveraged, qualified_only]
+
+  - id: treasury_future
+    name_zh: "国债期货(久期管理代理)"
+    name_en: "Treasury futures (duration mgmt proxy)"
+    class: futures
+    source: none
+    currency: CNY
+    fee: 0.0002
+    margin: 0.03
+    tags: [leveraged, qualified_only]
+
+# Class-level priors for the shrinkage estimator and synthetic world.
+class_priors:
+  cash:           {ann_ret: 0.020, ann_vol: 0.004}
+  fixed_income:   {ann_ret: 0.038, ann_vol: 0.020}
+  hybrid:         {ann_ret: 0.055, ann_vol: 0.085}
+  commodity:      {ann_ret: 0.055, ann_vol: 0.150}
+  equity_cn:      {ann_ret: 0.075, ann_vol: 0.220}
+  equity_global:  {ann_ret: 0.090, ann_vol: 0.190}
+  crypto:         {ann_ret: 0.180, ann_vol: 0.650}
+  futures:        {ann_ret: 0.060, ann_vol: 0.120}

@@ -1,0 +1,40 @@
+{
+  "year": 2026,
+  "page_no": 3,
+  "image_file": "data/images/2026/page_0003.png",
+  "calendar_month": "2026-01",
+  "calendar_dates": [
+    "2026-01-01"
+  ],
+  "signals": [
+    {
+      "date": "2026-01-01",
+      "signal_name_cn": "资本利得突出量",
+      "signal_type_cn": "行为金融因子-处置效应",
+      "manual_factor_name": "CGO",
+      "formula": "RP_t = \\frac{1}{k} \\sum_{n=0}^{T-1} \\left( V_{t-n} \\prod_{s=1}^{n-1} (1 - V_{t-n+s}) \\right) P_{t-n} \\quad CGO_{i,t} = \\frac{Close_{i,t} - RP_t}{Close_{i,t}}",
+      "variables": [
+        {
+          "name": "V_t",
+          "description": "t日的换手率"
+        },
+        {
+          "name": "Close",
+          "description": "t日的收盘价"
+        },
+        {
+          "name": "P_t",
+          "description": "t日的VWAP均价"
+        },
+        {
+          "name": "k",
+          "description": "权重系数，用于保证计算RP_t时的权重和等于1，即为P_t前面权重系数之和"
+        }
+      ],
+      "raw_text": "资本利得突出量\n行为金融因子-处置效应\n使用过去一段时间的换手率加权价格作为参考价格，用于衡量股票的综合持仓成本，进而衡量大部分投资者在某只股票上是盈利还是亏损：\nRP_t = \\frac{1}{k} \\sum_{n=0}^{T-1} \\left( V_{t-n} \\prod_{s=1}^{n-1} (1 - V_{t-n+s}) \\right) P_{t-n}\n计算第t日股票i的持仓者相对参考价格数学RP_t的平均盈亏情况即为资本利得突出量：\nCGO_{i,t} = \\frac{Close_{i,t} - RP_t}{Close_{i,t}}\n—其中—\n① V_t、Close、P_t 分别为为t日的换手率、收盘价、VWAP均价；\n② k 为权重系数，用于保证计算RP_t时的权重和等于1，即为P_t前面权重系数之和。\n—说明—\n处置效应指投资者“售盈持亏”的情感倾向；CGO因子值越大，浮盈越大；历史股价上涨，高CGO意味着大量投资者盈利，抛压大，卖盘压力增加，股价上涨受阻；历史股价下跌，低或负CGO意味着投资者普遍被套，抛售意愿弱，卖压小，一旦有利好，股价更容易反弹；CGO因子对应反转效应，与未来收益负相关。",
+      "confidence_note": "清晰"
+    }
+  ],
+  "page_raw_text": "1\nJanuary\n冬月十三\n星期四\n1月\n资本利得突出量\n行为金融因子-处置效应\n使用过去一段时间的换手率加权价格作为参考价格，用于衡量股票的综合持仓成本，进而衡量大部分投资者在某只股票上是盈利还是亏损：\nRP_t = \\frac{1}{k} \\sum_{n=0}^{T-1} \\left( V_{t-n} \\prod_{s=1}^{n-1} (1 - V_{t-n+s}) \\right) P_{t-n}\n计算第t日股票i的持仓者相对参考价格数学RP_t的平均盈亏情况即为资本利得突出量：\nCGO_{i,t} = \\frac{Close_{i,t} - RP_t}{Close_{i,t}}\n—其中—\n① V_t、Close、P_t 分别为为t日的换手率、收盘价、VWAP均价；\n② k 为权重系数，用于保证计算RP_t时的权重和等于1，即为P_t前面权重系数之和。\n—说明—\n处置效应指投资者“售盈持亏”的情感倾向；CGO因子值越大，浮盈越大；历史股价上涨，高CGO意味着大量投资者盈利，抛压大，卖盘压力增加，股价上涨受阻；历史股价下跌，低或负CGO意味着投资者普遍被套，抛售意愿弱，卖压小，一旦有利好，股价更容易反弹；CGO因子对应反转效应，与未来收益负相关。\n[参考文献]\n① 陈丹彪, 杨晓波, 2025, 处置效应与V型处置效应在量化选股中的应用, 中信建投.\n② Grinblatt, M., & Han, B., 2005, Prospect theory, mental accounting, and the disposition effect, Journal of Financial Economics, 78(2), 311-339.\nCIML\n量化投资与机器学习",
+  "warnings": []
+}

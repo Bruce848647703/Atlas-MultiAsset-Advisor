@@ -1,0 +1,26 @@
+# systemd unit for the Atlas autonomous factor-evolution daemon.
+#
+# Install:
+#   sudo cp deploy/atlas-evolution.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now atlas-evolution
+#   sudo systemctl status atlas-evolution
+#
+# Edit User/WorkingDirectory/Environment to match your setup.
+
+[Unit]
+Description=Atlas factor self-evolution daemon (autonomous learning)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=zhuoming.wang
+WorkingDirectory=/home/zhuoming.wang/invest-agent
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/zhuoming.wang/anaconda3/bin/python scripts/evolution_daemon.py --interval-hours 6
+Restart=on-failure
+RestartSec=60
+
+[Install]
+WantedBy=multi-user.target

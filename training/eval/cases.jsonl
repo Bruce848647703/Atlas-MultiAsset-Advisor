@@ -1,0 +1,4 @@
+{"name": "conservative_mass", "answers": {"0": 1, "1": 0, "2": 1, "3": 0, "4": 0, "5": 0, "6": 0, "7": 0, "8": 0}, "capital": 80000, "free_text": "这笔钱不能亏，保本最重要", "expect_no_exposure": ["crypto", "futures", "equity_cn", "equity_global"], "expect_max_vol_ann": 0.04}
+{"name": "balanced_affluent", "answers": {"0": 2, "1": 2, "2": 3, "3": 2, "4": 2, "5": 2, "6": 2, "7": 1, "8": 2}, "capital": 500000, "free_text": "能接受短期波动，但不想亏掉本金", "expect_no_exposure": ["futures"], "expect_max_vol_ann": 0.20}
+{"name": "aggressive_hnw", "answers": {"0": 3, "1": 3, "2": 3, "3": 3, "4": 3, "5": 3, "6": 3, "7": 3, "8": 3}, "capital": 5000000, "free_text": "追求高收益，币圈和期货都可以研究，跌了敢加仓", "expect_no_exposure": [], "expect_max_vol_ann": 0.40}
+{"name": "mass_no_futures_gate", "answers": {"0": 3, "1": 3, "2": 3, "3": 3, "4": 3, "5": 3, "6": 3, "7": 3, "8": 3}, "capital": 100000, "free_text": "想玩期货加杠杆", "expect_no_exposure": ["futures"], "expect_max_vol_ann": 0.45}

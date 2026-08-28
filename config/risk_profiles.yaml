@@ -1,0 +1,120 @@
+# ============================================================
+# Investor suitability tiers, aligned with the Chinese
+# securities/bank-wealth-management convention C1..C5
+# (投资者适当性管理: C1 保守型 ... C5 激进型).
+# Each tier bounds class exposure; client segments additionally
+# gate access to leveraged products.
+# ============================================================
+risk_tiers:
+  C1:
+    label_zh: "保守型"
+    label_en: "Conservative"
+    score_range: [0, 20]
+    target_return: 0.025
+    max_vol_hint: 0.02
+    risk_aversion: 12.0        # lambda for mean-variance objective
+    class_caps:
+      cash: 1.00
+      fixed_income: 0.80
+      hybrid: 0.20
+      commodity: 0.05
+      equity_cn: 0.00
+      equity_global: 0.00
+      crypto: 0.00
+      futures: 0.00
+  C2:
+    label_zh: "稳健型"
+    label_en: "Moderate-Conservative"
+    score_range: [21, 40]
+    target_return: 0.040
+    max_vol_hint: 0.05
+    risk_aversion: 8.0
+    class_caps:
+      cash: 0.60
+      fixed_income: 0.80
+      hybrid: 0.40
+      commodity: 0.10
+      equity_cn: 0.25
+      equity_global: 0.25
+      crypto: 0.00
+      futures: 0.00
+  C3:
+    label_zh: "平衡型"
+    label_en: "Balanced"
+    score_range: [41, 60]
+    target_return: 0.060
+    max_vol_hint: 0.10
+    risk_aversion: 4.5
+    class_caps:
+      cash: 0.40
+      fixed_income: 0.60
+      hybrid: 0.50
+      commodity: 0.15
+      equity_cn: 0.50
+      equity_global: 0.50
+      crypto: 0.05
+      futures: 0.00
+  C4:
+    label_zh: "进取型"
+    label_en: "Growth"
+    score_range: [61, 80]
+    target_return: 0.085
+    max_vol_hint: 0.16
+    risk_aversion: 2.6
+    class_caps:
+      cash: 0.25
+      fixed_income: 0.45
+      hybrid: 0.60
+      commodity: 0.20
+      equity_cn: 0.75
+      equity_global: 0.75
+      crypto: 0.12
+      futures: 0.08
+    satellite_floors:
+      crypto: 0.02
+  C5:
+    label_zh: "激进型"
+    label_en: "Aggressive"
+    score_range: [81, 100]
+    target_return: 0.120
+    max_vol_hint: 0.25
+    risk_aversion: 1.6
+    class_caps:
+      cash: 0.15
+      fixed_income: 0.30
+      hybrid: 0.70
+      commodity: 0.25
+      equity_cn: 0.95
+      equity_global: 0.95
+      crypto: 0.20
+      futures: 0.15
+    satellite_floors:
+      crypto: 0.04
+
+# Client segmentation by investable capital (CNY).
+# Drives product accessibility, minimum tickets and service depth.
+client_segments:
+  mass:
+    label_zh: "大众客群"
+    label_en: "Mass retail"
+    range: [0, 200000]
+    min_future_ticket: null        # futures not served (suitability)
+    allow_crypto: true
+    allow_futures: false
+    notes_zh: "以公募基金/ETF为主，强调定投与流动性储备。"
+  mass_affluent:
+    label_zh: "富裕客群"
+    label_en: "Mass affluent"
+    range: [200000, 1000000]
+    min_future_ticket: 500000
+    allow_crypto: true
+    allow_futures: true             # only managed strategies, capped
+    notes_zh: "核心-卫星结构：指数核心 + 黄金/行业卫星。"
+  hnw:
+    label_zh: "高净值客群"
+    label_en: "High net worth"
+    range: [1000000, null]
+    min_future_ticket: 1000000
+    allow_crypto: true
+    allow_futures: true
+    notes_zh: "可纳入衍生品与另类策略，注重回撤控制与税务安排。"
