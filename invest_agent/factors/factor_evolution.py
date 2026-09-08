@@ -321,6 +321,15 @@ def run_cycle(provider_name: str = "merged", months: int = 96,
     except Exception:  # noqa: BLE001
         learned = []
 
+    # calibrate analyst council voice weights on the same real data
+    analyst_calib = None
+    try:
+        from ..analyst_calibration import calibrate_all
+        calib = calibrate_all(provider_name=provider_name, months=months)
+        analyst_calib = calib.get("meta", {})
+    except Exception:  # noqa: BLE001
+        analyst_calib = None
+
     try:
         online = collect_online()
     except Exception:  # noqa: BLE001
@@ -338,6 +347,7 @@ def run_cycle(provider_name: str = "merged", months: int = 96,
         "pdf_factors_registered": pdf_registered,
         "learned_empirical": [{"name": f["name"], "ic": f.get("ic")} for f in learned],
         "collected_online": len(online),
+        "analyst_calibration": analyst_calib,
         "store_stats": after,
     }
 

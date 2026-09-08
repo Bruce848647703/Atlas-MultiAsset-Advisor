@@ -395,16 +395,23 @@ def _numeric_tilt(a: Analyst, regime: str) -> Dict[str, float]:
 
 def council_vote(ctx: Dict, n: int = 5) -> Dict:
     """Top-n analysts cast relevance-weighted votes; returns the aggregated net
-    per-class tilt (in [-1,1]) plus each analyst's ballot."""
+    per-class tilt (in [-1,1]) plus each analyst's ballot.
+
+    Vote weight = directional relevance × calibrated voice multiplier (learned
+    from each analyst's historical style IC — see analyst_calibration.py).
+    """
+    from .analyst_calibration import voice_multiplier
     picked = select_analysts(ctx, n=n)
     regime = ctx.get("regime", "neutral")
     votes, agg, total_w = [], {}, 0.0
     for a in picked:
         rel = score_analyst(a, ctx)
-        w = max(rel, 0.05)
+        voice = voice_multiplier(a.id)
+        w = max(rel, 0.05) * voice
         tilt = _numeric_tilt(a, regime)
         votes.append({"name_zh": a.name_zh, "school": a.school,
-                      "relevance": rel, "weight": round(w, 3), "tilt": tilt})
+                      "relevance": rel, "voice": voice,
+                      "weight": round(w, 3), "tilt": tilt})
         for c, s in tilt.items():
             agg[c] = agg.get(c, 0.0) + w * s
         total_w += w

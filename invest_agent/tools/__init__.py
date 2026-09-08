@@ -301,6 +301,12 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
                 "has_crypto": plan_classes.get("crypto", 0.0) > 1e-4,
                 "macro_stance": macro,
             }, n=int(args.get("n", 5)))
+            # attach calibrated voice-weight provenance
+            try:
+                from ..analyst_calibration import calibration_summary
+                cc["calibration"] = calibration_summary()
+            except Exception:  # noqa: BLE001
+                cc["calibration"] = {"calibrated": False}
             return cc
         except Exception as e:  # noqa: BLE001
             return {"error": f"analyst council unavailable: {e}"}

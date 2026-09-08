@@ -177,6 +177,12 @@ Cathie Wood, O'Neil, Livermore, Asness, Thorp, ...). For each plan the council:
    influence on the allocation is automatically damped by divergence**
    (`effective_strength = strength × (1 − divergence)`) and a caution is printed —
    a split panel should make you *less* confident, not more.
+7. **Learnable voice weights** (`analyst_calibration.py`): each analyst's structural
+   style tilt is backtested against forward asset-class returns on real data →
+   style IC → `voice_multiplier = clip(1 + 5·IC, 0.5, 1.5)`. Vote weight =
+   relevance × voice. Persisted in `data/analyst_weights.json` and **re-calibrated
+   by the evolution daemon** — styles that keep working gain influence; styles
+   that stop working get muted (e.g. measured: Bogle ×1.45, Cathie Wood ×0.87).
 
 Example: a C5 crypto-heavy risk-on plan selects Wood / Andreessen / Simons / Asness /
 Lynch; their weighted vote pushes equity+crypto up and bonds down, and the final
@@ -330,6 +336,7 @@ invest_agent/
   global_base.py  # ★ family-office basing: 12-base catalog + friction model + scoring
   final_advice.py # ★ final integrated advice: quant × macro × geo × basing fusion
   analysts.py     # ★ analyst council: ~30 legends, top-5 by directional match
+  analyst_calibration.py # ★ learnable voice weights (style IC -> multiplier)
   global_indices.py # ★ global index board: dual-source (Tencent+EM) + cache + fallback
   intel.py        # ★ market intel: news fetching + topic tagging + cache
   factors/        # ★ loader / lens / enrich(live factors) / factor_store /
@@ -345,7 +352,7 @@ scripts/run_demo.py         dashboard/app.py (streamlit)
 training/         # README / generate_sft_data.py / build_real_dataset.py /
                   # eval/(compliance + requirement benchmark) / finetune/
 examples/factor_library_sample/  # factor-library sample (full lib: factors.data_dir)
-tests/            # 125 tests
+tests/            # 132 tests
 .streamlit/config.toml + dashboard/style.py  # Jane Street-style light theme
 ```
 

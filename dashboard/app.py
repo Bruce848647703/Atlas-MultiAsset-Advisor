@@ -459,12 +459,20 @@ if _cc and not _cc.get("error"):
     if _dv.get("score", 0) >= 0.45:
         st.warning("⚠ 智囊团分歧显著：建议降低主观观点权重，以量化基础配置与纪律为主。")
     st.caption(_cc["summary"])
-    for _v in _cc["council"]:
+    for _v, _vote in zip(_cc["council"], _cc.get("votes", [])):
         with st.container():
+            _voice = _vote.get("voice", 1.0)
+            _voice_txt = f"话语权 ×{_voice:.2f}" if abs(_voice - 1.0) > 0.01 else "话语权 ×1.00(未校准)"
             st.markdown(f"**{_v['name_zh']} · {_v['name_en']}** — {_v['school']} "
-                        f"｜相关度 {_v['relevance']:.2f}｜{_v['stance']}")
+                        f"｜相关度 {_v['relevance']:.2f}｜{_voice_txt}｜{_v['stance']}")
             st.markdown(f"&nbsp;&nbsp;🗣 {_v['advice']}")
             st.markdown(f"&nbsp;&nbsp;📊 仓位倾向: `{_v['tilt_text']}` ｜ 原则: “{_v['signature']}”")
+    _cal = _cc.get("calibration") or {}
+    if _cal.get("calibrated"):
+        _top = "、".join(f"{t['name_zh']}({t['multiplier']:.2f})" for t in _cal.get("top", [])[:3])
+        _bot = "、".join(f"{t['name_zh']}({t['multiplier']:.2f})" for t in _cal.get("bottom", [])[:3])
+        st.caption(f"📈 话语权校准(风格IC, {_cal.get('meta', {}).get('calibrated_at', '—')}): "
+                   f"最高 {_top} · 最低 {_bot}")
     st.caption("_智囊团为不同投资流派视角的模拟观点，仅供多元参考，不构成投资建议。_")
 elif _cc and _cc.get("error"):
     st.warning(f"智囊团暂不可用: {_cc['error']}")
