@@ -354,6 +354,7 @@ training/         # README / generate_sft_data.py / build_real_dataset.py /
 examples/factor_library_sample/  # factor-library sample (full lib: factors.data_dir)
 tests/            # 132 tests
 .streamlit/config.toml + dashboard/style.py  # Jane Street-style light theme
+.gitlab-ci.yml + DEMO.md   # GitLab CI (tests+gates) & live-demo script
 ```
 
 ## 6.5 Front-End Style (Jane Street)

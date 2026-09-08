@@ -1,0 +1,41 @@
+# GitLab CI — runs the quant-core test suite + compliance/requirement gates
+# on every push. Serves as a live quality signal during demos.
+#
+# Uses python:3.9-slim with numpy pinned <1.23 (matches the scipy 1.7 env this
+# project was built against). Network-dependent features degrade gracefully,
+# so tests run fully offline on the synthetic provider.
+
+stages:
+  - test
+
+default:
+  image: python:3.9-slim
+
+variables:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PIP_NO_CACHE_DIR: "1"
+
+.install: &install
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq git >/dev/null
+    - pip install --quiet "numpy<1.23" "pandas>=1.4" "scipy>=1.7" "matplotlib>=3.5"
+        "PyYAML>=5.4" "pytest>=7.0" "jinja2>=3.1.2" "requests"
+
+unit-tests:
+  <<: *install
+  stage: test
+  script:
+    - python -m pytest tests/ -q --junitxml=report.xml
+  artifacts:
+    when: always
+    reports:
+      junit: report.xml
+    expire_in: 1 week
+
+compliance-gate:
+  <<: *install
+  stage: test
+  script:
+    - python training/eval/eval_suite.py
+    - python training/eval/eval_requirement.py
+  allow_failure: false
