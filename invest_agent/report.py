@@ -68,8 +68,26 @@ def _render_final_advice(adv: Dict, plan: Plan) -> str:
     return "\n".join(L) + "\n"
 
 
+def _render_council(council: Dict) -> str:
+    """Render the analyst council (top-5 direction-matched personas)."""
+    L = ["## 🧑‍💼 金融分析师智囊团 Analyst Council",
+         f"> {council.get('summary', '')}\n",
+         f"共识研判: **{council.get('consensus', '中性')}**"
+         + (f" · 异议: {'、'.join(council['dissent'])}" if council.get("dissent") else "")
+         + f" · 候选池 {council.get('n_analysts_total', 30)} 位\n"]
+    for v in council.get("council", []):
+        L.append(f"**{v['name_zh']} · {v['name_en']}**（{v['school']}，相关度 {v['relevance']:.2f}，{v['stance']}）")
+        L.append(f"> {v['philosophy']}")
+        L.append(f"- 观点: {v['advice']}")
+        L.append(f"- 仓位倾向: {v['tilt_text']}")
+        L.append(f"- 原则: “{v['signature']}”\n")
+    L.append("_智囊团为不同投资流派视角的模拟观点，仅供多元参考，不构成投资建议。_\n")
+    return "\n".join(L) + "\n"
+
+
 def build_report(plan: Plan, chart_paths: Optional[Dict[str, str]] = None,
-                 lang: str = "zh", final_advice: Optional[Dict] = None) -> str:
+                 lang: str = "zh", final_advice: Optional[Dict] = None,
+                 analyst_council: Optional[Dict] = None) -> str:
     cfg = get_config()
     disclaimer = cfg["agent"]["disclaimer"].strip()
     name_of = {a.id: a.name_en for a in plan.assets}
@@ -83,6 +101,10 @@ def build_report(plan: Plan, chart_paths: Optional[Dict[str, str]] = None,
     # ---- 最终综合建议 (量化×大类×地缘×落位 有机融合) ----
     if final_advice:
         L.append(_render_final_advice(final_advice, plan))
+
+    # ---- 分析师智囊团 (约30选5, 方向匹配) ----
+    if analyst_council:
+        L.append(_render_council(analyst_council))
 
     st = plan.strategy
     L.append("## 0. 所选策略 Strategy\n")

@@ -30,6 +30,7 @@ from ..global_base import (AssetProfile, recommend_bases, base_digest,
                            ASSET_PROFILE_QUESTIONS)
 from ..final_advice import build_final_advice, synthesize_final_advice, final_digest
 from ..global_indices import fetch_global_indices
+from ..analysts import build_council, REGISTRY as ANALYST_REGISTRY
 
 PRODUCT_RISK_NOTES = {
     "cash": "R1 低风险: 货币基金/存款，流动性储备，几乎无回撤。",
@@ -261,6 +262,49 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
         except Exception as e:  # noqa: BLE001
             return {"error": f"global base advice unavailable: {e}"}
 
+    def get_analyst_council(args: Dict[str, Any]) -> Dict[str, Any]:
+        """金融分析师智囊团: 从约30位投资大师/流派中，按当前策略/资产/局势/等级
+        选出方向最匹配的5位，各自给出个性化观点。需先生成方案(build_investment_plan)。"""
+        if ctx.plan is None:
+            return {"error": "请先生成配置方案 (build_investment_plan)。"}
+        try:
+            plan = ctx.plan
+            # class weights from the plan
+            plan_classes: Dict[str, float] = {}
+            for a_id, w in plan.weights.items():
+                cls = next(a.asset_class for a in plan.assets if a.id == a_id)
+                plan_classes[cls] = plan_classes.get(cls, 0.0) + w
+            # regime from geopolitics (best-effort)
+            regime, macro = "neutral", {}
+            try:
+                situ = assess_global_situation(fetch_global_news(max_items=40))
+                regime = situ.get("regime", "neutral")
+                # map regime text -> risk-on/off/neutral
+                if "risk-on" in regime:
+                    regime = "risk-on"
+                elif "risk-off" in regime:
+                    regime = "risk-off"
+                else:
+                    regime = "neutral"
+            except Exception:  # noqa: BLE001
+                pass
+            try:
+                madv = generate_macro_advice(provider_name=ctx.provider_name, months=60)
+                macro = {a["class"]: a["stance"] for a in madv.get("advice", [])}
+            except Exception:  # noqa: BLE001
+                pass
+            cc = build_council({
+                "regime": regime,
+                "plan_classes": plan_classes,
+                "tier": plan.profile.tier,
+                "strategy_tags": list(plan.strategy.tags),
+                "has_crypto": plan_classes.get("crypto", 0.0) > 1e-4,
+                "macro_stance": macro,
+            }, n=int(args.get("n", 5)))
+            return cc
+        except Exception as e:  # noqa: BLE001
+            return {"error": f"analyst council unavailable: {e}"}
+
     def get_asset_profile_questionnaire(args: Dict[str, Any]) -> Dict[str, Any]:
         """返回资产画像问卷结构(资产类型/境外占比/境外账户/流动性)，供前端渲染或提问。"""
         return {"questions": ASSET_PROFILE_QUESTIONS,
@@ -446,6 +490,12 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
            "overseas_accounts": {"type": "array"}, "capital": {"type": "number"},
            "crypto_held": {"type": "boolean"}, "liquidity_need": {"type": "string"}},
           [], get_final_advice),
+        T("get_analyst_council",
+          "金融分析师智囊团: 从约30位投资大师/流派(西蒙斯/巴菲特/达利欧/塔勒布等)中，"
+          "按当前策略/资产/局势/适当性等级选出方向最匹配的5位，各自给出个性化观点与仓位倾向。"
+          "需先 build_investment_plan。",
+          {"n": {"type": "integer", "description": "选取分析师数量, 默认5"}},
+          [], get_analyst_council),
         T("evolve_factor_library",
           "因子自进化: 导入知识库+从真实数据实证学习因子(测IC)+在线搜集，持久化到项目因子库。",
           {"months": {"type": "integer"}, "ic_threshold": {"type": "number"},

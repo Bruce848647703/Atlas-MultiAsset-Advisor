@@ -412,6 +412,39 @@ if _fa and not _fa.get("error"):
 elif _fa and _fa.get("error"):
     st.warning(f"最终建议暂不可用: {_fa['error']}")
 
+# ---- ⑤ 金融分析师智囊团 (约30选5, 方向匹配) ----
+st.subheader("⑤ 金融分析师智囊团 Analyst Council")
+st.caption("从约30位投资大师/流派(西蒙斯·巴菲特·达利欧·塔勒布·伍德…)中，按当前"
+           "策略/资产/局势/适当性等级选出方向最匹配的5位，各自给出观点。仅供参考。")
+_c_col1, _c_col2 = st.columns([1, 3])
+with _c_col1:
+    _gen_council = st.button("召集智囊团", key="gen_council")
+if _gen_council:
+    with st.spinner("匹配分析师并生成观点(含局势+大类观点)..."):
+        try:
+            from invest_agent.tools import AdvisorContext, build_tools  # noqa: E402
+            _actx = AdvisorContext(provider_name=provider)
+            _actx.plan = plan
+            _actx.profile = profile
+            _tools = {t.name: t for t in build_tools(_actx)}
+            st.session_state["atlas_council"] = _tools["get_analyst_council"].handler({"n": 5})
+        except Exception as _ce:  # noqa: BLE001
+            st.session_state["atlas_council"] = {"error": str(_ce)}
+_cc = st.session_state.get("atlas_council")
+if _cc and not _cc.get("error"):
+    st.success(f"共识研判: **{_cc['consensus']}** · 候选池 {_cc['n_analysts_total']} 位"
+               + (f" · 异议: {'、'.join(_cc['dissent'])}" if _cc.get("dissent") else ""))
+    st.caption(_cc["summary"])
+    for _v in _cc["council"]:
+        with st.container():
+            st.markdown(f"**{_v['name_zh']} · {_v['name_en']}** — {_v['school']} "
+                        f"｜相关度 {_v['relevance']:.2f}｜{_v['stance']}")
+            st.markdown(f"&nbsp;&nbsp;🗣 {_v['advice']}")
+            st.markdown(f"&nbsp;&nbsp;📊 仓位倾向: `{_v['tilt_text']}` ｜ 原则: “{_v['signature']}”")
+    st.caption("_智囊团为不同投资流派视角的模拟观点，仅供多元参考，不构成投资建议。_")
+elif _cc and _cc.get("error"):
+    st.warning(f"智囊团暂不可用: {_cc['error']}")
+
 if plan.menu:
     with st.expander("策略菜单对比 Strategy menu (各自回测)"):
         _rows = []
@@ -620,11 +653,15 @@ with st.expander("完整报告 Full report"):
             return f"![{alt}](data:image/png;base64,{b64})"
         return ""  # drop unresolvable refs
 
-    # rebuild the report to include the fused final advice when available
+    # rebuild the report to include fused final advice + analyst council
     _fa_rep = st.session_state.get("atlas_final_advice")
-    if _fa_rep and not _fa_rep.get("error"):
+    _cc_rep = st.session_state.get("atlas_council")
+    _cc_rep = _cc_rep if (_cc_rep and not _cc_rep.get("error")) else None
+    if (_fa_rep and not _fa_rep.get("error")) or _cc_rep:
         from invest_agent.report import build_report as _br  # noqa: E402
-        _rep_src = _br(plan, res["charts"], final_advice=_fa_rep)
+        _rep_src = _br(plan, res["charts"],
+                       final_advice=(_fa_rep if _fa_rep and not _fa_rep.get("error") else None),
+                       analyst_council=_cc_rep)
     else:
         _rep_src = res["report"]
     _report_text = _re.sub(r"!\[([^\]]*)\]\(([^)]+)\)", _embed, _rep_src)

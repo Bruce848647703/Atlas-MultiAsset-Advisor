@@ -72,6 +72,7 @@ interface**, driving the core through **18 tools**:
 | `get_asset_profile_questionnaire` | Asset-profile questionnaire structure (types / overseas % / accounts / liquidity) |
 | `recommend_global_bases` | Family-office global basing (onshore/cross-border/offshore scoring + friction) |
 | `get_final_advice` | Final integrated advice (quant × macro × geo × basing, organically fused + action list) |
+| `get_analyst_council` | Analyst council: pick the 5 best-matched of ~30 legends and render their views |
 | `evolve_factor_library` | Factor self-evolution (KB import + empirical IC learning + online collection) |
 | `get_factor_knowledge` | Retrieve factor definitions / formulas / logic / direction from the factor library |
 | `screen_assets_by_factors` | Score/rank the asset pool via the factor lens (momentum/reversal/low-vol/drawdown) |
@@ -152,6 +153,24 @@ quant allocation × class views × global situation × global basing
 - **Basing map**: each asset class lands on the highest-scoring base that supports it.
 - Output: final class allocation + global basing + thesis narrative + action list,
   auto-written into the report (`build_report(..., final_advice=...)`).
+
+### Analyst Council ★ (`analysts.py`, ~30 legends → top-5 by direction)
+
+A virtual panel of ~30 investment legends / schools (Jim Simons, Buffett, Munger,
+Graham, Lynch, Soros, Dalio, Howard Marks, Templeton, Taleb, Swensen, Bogle,
+Cathie Wood, O'Neil, Livermore, Asness, Thorp, ...). For each plan the council:
+
+1. **Scores every analyst for directional match** against the current context
+   (plan class weights, geo regime, strategy tags, suitability tier, crypto presence);
+2. **Selects the top-5** most relevant lenses;
+3. **Renders each persona's view** — stance (offensive/neutral/defensive), advice tied
+   to the current allocation + macro view, class tilts, and their signature principle;
+4. **Aggregates a consensus + dissent** and a one-paragraph summary.
+
+Example: a C5 crypto-heavy risk-on plan selects Asness / O'Neil / Simons / Lynch /
+Fisher (momentum-growth-quant); a C1 bond-heavy risk-off plan selects Klarman /
+Graham / Dalio / Druckenmiller / Fink (value-defensive-macro). Output is clearly
+attributed and labeled as reference views, written into the report's "Analyst Council".
 
 ### Factor Self-Evolution ★ (`factors/factor_store.py` + `factor_evolution.py`, autonomous)
 
@@ -298,6 +317,7 @@ invest_agent/
   macro_advice.py # ★ asset-class advice: momentum+valuation+news+macro
   global_base.py  # ★ family-office basing: 12-base catalog + friction model + scoring
   final_advice.py # ★ final integrated advice: quant × macro × geo × basing fusion
+  analysts.py     # ★ analyst council: ~30 legends, top-5 by directional match
   global_indices.py # ★ global index board: dual-source (Tencent+EM) + cache + fallback
   intel.py        # ★ market intel: news fetching + topic tagging + cache
   factors/        # ★ loader / lens / enrich(live factors) / factor_store /
@@ -313,7 +333,7 @@ scripts/run_demo.py         dashboard/app.py (streamlit)
 training/         # README / generate_sft_data.py / build_real_dataset.py /
                   # eval/(compliance + requirement benchmark) / finetune/
 examples/factor_library_sample/  # factor-library sample (full lib: factors.data_dir)
-tests/            # 108 tests
+tests/            # 115 tests
 .streamlit/config.toml + dashboard/style.py  # Jane Street-style light theme
 ```
 
