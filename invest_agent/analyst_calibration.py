@@ -24,7 +24,8 @@ import numpy as np
 import pandas as pd
 
 _WEIGHTS_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(__file__)), "..", "data", "analyst_weights.json")
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "data", "analyst_weights.json")
 
 K_IC = 5.0          # IC -> multiplier gain
 MULT_MIN, MULT_MAX = 0.5, 1.5
