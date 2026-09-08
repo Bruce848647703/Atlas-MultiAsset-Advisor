@@ -93,3 +93,27 @@ def test_full_fusion_with_overlays():
     d = final_digest(adv)
     assert "最终综合建议" in d and "执行清单" in d
     assert abs(sum(adv["final_class_weights"].values()) - 1.0) < 1e-6
+
+
+def test_council_overlay_shifts_weights():
+    from invest_agent.final_advice import _apply_council_tilt
+    plan = _mock_plan()
+    cw = {"equity_cn": 0.4, "equity_global": 0.3, "fixed_income": 0.3}
+    # defensive council: cut equities, boost bonds
+    net = {"equity_cn": -0.6, "equity_global": -0.6, "fixed_income": 0.6}
+    out = _apply_council_tilt(dict(cw), net, plan.class_caps, strength=0.5)
+    assert abs(sum(out.values()) - 1.0) < 1e-6
+    assert out["fixed_income"] > cw["fixed_income"]
+    assert out["equity_cn"] < cw["equity_cn"]
+
+
+def test_council_overlay_respects_caps():
+    from invest_agent.final_advice import _apply_council_tilt
+    cw = {"equity_cn": 0.5, "fixed_income": 0.5}
+    caps = {"equity_cn": 0.6, "fixed_income": 0.6}
+    net = {"equity_cn": 1.0, "fixed_income": -1.0}
+    out = _apply_council_tilt(dict(cw), net, caps, strength=0.5)
+    tot = sum(out.values())
+    for c, w in out.items():
+        assert w <= caps[c] * tot + 1e-6
+    assert abs(tot - 1.0) < 1e-6

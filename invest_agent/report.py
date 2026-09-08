@@ -65,6 +65,20 @@ def _render_final_advice(adv: Dict, plan: Plan) -> str:
         where = f"（落位: {b['base']}）" if b else ""
         L.append(f"{i}. {nm} — {_fmt_pct(w)} {where}")
     L.append("")
+
+    council = adv.get("council")
+    if council:
+        L.append("### 分析师智囊团投票（约30选5，相关度加权）")
+        L.append(f"> {council.get('summary', '')}")
+        net = council.get("net_tilt", {})
+        if net:
+            tilt_txt = "、".join(f"{c} {v:+.2f}" for c, v in
+                                 sorted(net.items(), key=lambda kv: -kv[1]) if abs(v) > 0.05)
+            L.append(f"**净仓位信号**（已按此微调上方最终配置）: {tilt_txt}")
+        members = "、".join(f"{m['name_zh']}({m['stance']})" for m in council.get("members", []))
+        if members:
+            L.append(f"成员: {members}")
+        L.append("")
     return "\n".join(L) + "\n"
 
 

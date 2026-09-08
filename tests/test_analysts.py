@@ -67,3 +67,40 @@ def test_council_dissent_and_summary():
     assert "summary" in council and len(council["summary"]) > 10
     assert council["n_analysts_total"] == len(REGISTRY)
     assert isinstance(council["dissent"], list)
+
+
+def test_numeric_tilt_bounded_and_regime_aware():
+    from invest_agent.analysts import _numeric_tilt
+    a = next(x for x in REGISTRY if x.id == "wood")   # growth, risk-on leaning
+    t_on = _numeric_tilt(a, "risk-on")
+    t_off = _numeric_tilt(a, "risk-off")
+    for v in list(t_on.values()) + list(t_off.values()):
+        assert -1.0 <= v <= 1.0
+    # growth analyst is more bullish on equity in risk-on than risk-off
+    assert t_on["equity_global"] > t_off["equity_global"]
+
+
+def test_council_vote_direction():
+    from invest_agent.analysts import council_vote
+    # risk-off bond-heavy -> net defensive (equity down, bonds up)
+    off = council_vote(_ctx(regime="risk-off",
+                            plan_classes={"fixed_income": 0.7, "cash": 0.2, "commodity": 0.1},
+                            tier="C1", tags=["defensive"]), n=5)
+    assert off["net_tilt"]["equity_global"] < 0
+    assert off["net_tilt"]["fixed_income"] > 0
+    # risk-on equity/crypto-heavy -> net offensive
+    on = council_vote(_ctx(regime="risk-on",
+                           plan_classes={"equity_global": 0.5, "crypto": 0.2, "equity_cn": 0.3},
+                           tier="C5", tags=["aggressive", "crypto"], crypto=True), n=5)
+    assert on["net_tilt"]["equity_global"] > 0
+    assert on["net_tilt"]["fixed_income"] < 0
+    # each vote carries weight + tilt
+    assert all(v["weight"] > 0 and isinstance(v["tilt"], dict) for v in on["votes"])
+
+
+def test_build_council_includes_vote():
+    c = build_council(_ctx(regime="risk-on",
+                           plan_classes={"equity_global": 0.6, "crypto": 0.1},
+                           tier="C5", tags=["momentum"], crypto=True), n=5)
+    assert "net_tilt" in c and "votes" in c
+    assert len(c["votes"]) == 5

@@ -165,11 +165,16 @@ Cathie Wood, O'Neil, Livermore, Asness, Thorp, ...). For each plan the council:
 2. **Selects the top-5** most relevant lenses;
 3. **Renders each persona's view** — stance (offensive/neutral/defensive), advice tied
    to the current allocation + macro view, class tilts, and their signature principle;
-4. **Aggregates a consensus + dissent** and a one-paragraph summary.
+4. **Aggregates a consensus + dissent** and a one-paragraph summary;
+5. **Weighted vote → net tilt**: each analyst casts a relevance-weighted numeric
+   ballot per asset class; the aggregated net tilt (in [-1,1]) **feeds back into the
+   final allocation** (`final_advice._apply_council_tilt`) as a bounded overlay —
+   the council refines, it does not override the quant+macro+geo fusion.
 
-Example: a C5 crypto-heavy risk-on plan selects Asness / O'Neil / Simons / Lynch /
-Fisher (momentum-growth-quant); a C1 bond-heavy risk-off plan selects Klarman /
-Graham / Dalio / Druckenmiller / Fink (value-defensive-macro). Output is clearly
+Example: a C5 crypto-heavy risk-on plan selects Wood / Andreessen / Simons / Asness /
+Lynch; their weighted vote pushes equity+crypto up and bonds down, and the final
+allocation reflects it (crypto capped at its suitability limit). A C1 bond-heavy
+risk-off plan selects Klarman / Graham / Dalio / Druckenmiller / Fink. Output is clearly
 attributed and labeled as reference views, written into the report's "Analyst Council".
 
 ### Factor Self-Evolution ★ (`factors/factor_store.py` + `factor_evolution.py`, autonomous)
@@ -333,7 +338,7 @@ scripts/run_demo.py         dashboard/app.py (streamlit)
 training/         # README / generate_sft_data.py / build_real_dataset.py /
                   # eval/(compliance + requirement benchmark) / finetune/
 examples/factor_library_sample/  # factor-library sample (full lib: factors.data_dir)
-tests/            # 115 tests
+tests/            # 120 tests
 .streamlit/config.toml + dashboard/style.py  # Jane Street-style light theme
 ```
 

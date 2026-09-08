@@ -405,6 +405,17 @@ if _fa and not _fa.get("error"):
                          "落位base": _b.get("base", "—"), "base评分": _b.get("score", "—"),
                          "摩擦": _b.get("friction", "—")})
     st.dataframe(_fa_rows, hide_index=True, use_container_width=True)
+    _fa_council = _fa.get("council")
+    if _fa_council:
+        st.markdown(f"**🧑‍💼 智囊团投票**（约30选5，相关度加权，已按此微调上方配置）："
+                    f"共识 **{_fa_council.get('consensus','—')}**")
+        _net = _fa_council.get("net_tilt", {})
+        if _net:
+            _nt = "、".join(f"{c} {v:+.2f}" for c, v in
+                           sorted(_net.items(), key=lambda kv: -kv[1]) if abs(v) > 0.05)
+            st.caption(f"净仓位信号: {_nt}")
+        _mem = "、".join(f"{m['name_zh']}({m['stance']})" for m in _fa_council.get("members", []))
+        st.caption(f"成员: {_mem}")
     with st.expander("执行清单 + 完整叙述"):
         for _i, _a in enumerate(_fa.get("actions", []), 1):
             st.text(f"{_i}. {_a}")

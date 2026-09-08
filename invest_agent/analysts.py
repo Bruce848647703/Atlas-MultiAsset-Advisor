@@ -311,7 +311,7 @@ def analyst_view(a: Analyst, ctx: Dict) -> Dict:
 
 
 def build_council(ctx: Dict, n: int = 5) -> Dict:
-    """Select top-n analysts and render the council."""
+    """Select top-n analysts, render the council, and aggregate a weighted vote."""
     picked = select_analysts(ctx, n=n)
     views = [analyst_view(a, ctx) for a in picked]
     # aggregate stance
@@ -320,12 +320,15 @@ def build_council(ctx: Dict, n: int = 5) -> Dict:
     consensus = stances.most_common(1)[0][0] if stances else "中性"
     # dissent: is there a clear minority?
     dissent = [v["name_zh"] for v in views if v["stance"] != consensus]
+    vote = council_vote(ctx, n=n)
     return {
         "regime": ctx.get("regime", "neutral"),
         "consensus": consensus,
         "dissent": dissent,
         "n_analysts_total": len(REGISTRY),
         "council": views,
+        "net_tilt": vote["net_tilt"],
+        "votes": vote["votes"],
         "summary": _council_summary(views, consensus, dissent),
     }
 
@@ -346,3 +349,63 @@ def _council_summary(views, consensus, dissent) -> str:
     return (f"本次从 {len(REGISTRY)} 位分析师中选出方向最匹配的 {len(views)} 位：{names}。"
             f"共识研判：{consensus}{tilt_hint}。{dissent_txt}"
             f"以下为各分析师基于其流派视角的观点，仅供参考、不构成投资建议。")
+
+
+# ---------------------------------------------------------------------------
+# Weighted voting -> net class tilt (feeds back into allocation)
+# ---------------------------------------------------------------------------
+def _numeric_tilt(a: Analyst, regime: str) -> Dict[str, float]:
+    """Map an analyst's archetype + current regime to a numeric per-class tilt
+    in [-1, +1] (+ = overweight). Deterministic and explainable."""
+    tags = set(a.tags)
+    aggressive = tags & {"momentum", "trend", "growth", "innovation", "tech", "high_freq"}
+    defensive = tags & {"value", "defensive", "cash", "tail_hedge", "barbell",
+                        "duration", "bonds"}
+    posture = 0.0
+    if aggressive:
+        posture += 0.5
+    if defensive:
+        posture -= 0.5
+    if a.contrarian:
+        posture -= 0.2
+    regime_mod = {"risk-on": 0.4, "risk-off": -0.4, "neutral": 0.0}.get(regime, 0.0)
+    posture = max(-1.0, min(1.0, posture + regime_mod))
+
+    t: Dict[str, float] = {
+        "equity_cn":     posture * 0.6,
+        "equity_global": posture * 0.6,
+        "crypto":        posture * (0.8 if a.crypto_friendly else 0.3),
+        "futures":       posture * 0.3,
+        "fixed_income":  -posture * 0.5,
+        "cash":          -posture * 0.4,
+        "commodity":     -posture * 0.4,
+    }
+    if "bonds" in tags or "duration" in tags:
+        t["fixed_income"] += 0.4
+    if tags & {"macro", "all_weather", "risk_parity"}:
+        t["commodity"] += 0.2
+        t["fixed_income"] += 0.2
+    if "index" in tags or "low_cost" in tags:
+        t["equity_global"] += 0.15
+    return {k: round(max(-1.0, min(1.0, v)), 3) for k, v in t.items()}
+
+
+def council_vote(ctx: Dict, n: int = 5) -> Dict:
+    """Top-n analysts cast relevance-weighted votes; returns the aggregated net
+    per-class tilt (in [-1,1]) plus each analyst's ballot."""
+    picked = select_analysts(ctx, n=n)
+    regime = ctx.get("regime", "neutral")
+    votes, agg, total_w = [], {}, 0.0
+    for a in picked:
+        rel = score_analyst(a, ctx)
+        w = max(rel, 0.05)
+        tilt = _numeric_tilt(a, regime)
+        votes.append({"name_zh": a.name_zh, "school": a.school,
+                      "relevance": rel, "weight": round(w, 3), "tilt": tilt})
+        for c, s in tilt.items():
+            agg[c] = agg.get(c, 0.0) + w * s
+        total_w += w
+    net = {c: round(v / total_w, 3) for c, v in agg.items()} if total_w else {}
+    return {"regime": regime, "net_tilt": net, "votes": votes,
+            "total_weight": round(total_w, 3)}
+

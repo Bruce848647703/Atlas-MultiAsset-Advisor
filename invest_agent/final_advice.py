@@ -140,16 +140,41 @@ def _pick_base_for_class(cls: str, ranked_bases: List[Dict]) -> Optional[Dict]:
     return None
 
 
-# ---------------------------------------------------------------------------
-# main synthesis
-# ---------------------------------------------------------------------------
+def _apply_council_tilt(cw: Dict[str, float], net_tilt: Dict[str, float],
+                        caps: Dict[str, float], strength: float = 0.5) -> Dict[str, float]:
+    """Apply the analyst council's weighted net tilt to class weights.
+
+    Bounded multiplicative adjustment (strength=0.5 -> each class moves ±50%),
+    then renormalized and re-clipped to suitability caps. A light overlay — the
+    council refines, it does not override the quant + macro + geo fusion.
+    """
+    if not net_tilt:
+        return cw
+    out = {}
+    for c, w in cw.items():
+        t = net_tilt.get(c, 0.0)
+        out[c] = max(0.0, w * (1.0 + strength * t))
+    tot = sum(out.values())
+    if tot <= 0:
+        return cw
+    out = {c: w / tot for c, w in out.items()}
+    out = _clip_caps(out, caps)
+    tot = sum(out.values())
+    return {c: w / tot for c, w in out.items()} if tot > 0 else out
+
+
 def synthesize_final_advice(plan, macro_advice=None, geo=None,
-                            ranked_bases=None) -> Dict:
-    """Fuse quant plan + macro views + geopolitical regime + global bases into
-    one final, trend-aligned recommendation."""
+                            ranked_bases=None, council=None,
+                            council_strength: float = 0.5) -> Dict:
+    """Fuse quant plan + macro views + geopolitical regime + analyst council +
+    global bases into one final, trend-aligned recommendation."""
     cw = _class_weights_from_plan(plan)
     cw = _apply_macro_tilt(cw, macro_advice)
     cw = _apply_geo_tilt(cw, geo)
+    # analyst council weighted vote refines the tilt
+    if council and council.get("net_tilt"):
+        cw = _apply_council_tilt(cw, council["net_tilt"], plan.class_caps,
+                                 council_strength)
     cw = _clip_caps(cw, plan.class_caps)
     # renormalize after clipping
     tot = sum(cw.values())
@@ -253,6 +278,34 @@ def build_final_advice(plan, profile, asset_profile=None,
     except Exception:  # noqa: BLE001
         ranked_bases = None
 
-    advice = synthesize_final_advice(plan, macro, geo, ranked_bases)
+    # analyst council (weighted vote refines the fusion)
+    council = None
+    try:
+        from .analysts import build_council
+        regime = "neutral"
+        if geo:
+            r = geo.get("regime", "")
+            regime = "risk-on" if "risk-on" in r else ("risk-off" if "risk-off" in r else "neutral")
+        plan_classes: Dict[str, float] = {}
+        for a_id, w in plan.weights.items():
+            cls = next(a.asset_class for a in plan.assets if a.id == a_id)
+            plan_classes[cls] = plan_classes.get(cls, 0.0) + w
+        council = build_council({
+            "regime": regime, "plan_classes": plan_classes, "tier": profile.tier,
+            "strategy_tags": list(plan.strategy.tags),
+            "has_crypto": plan_classes.get("crypto", 0.0) > 1e-4,
+            "macro_stance": {a["class"]: a["stance"] for a in (macro or {}).get("advice", [])},
+        }, n=5)
+    except Exception:  # noqa: BLE001
+        council = None
+
+    advice = synthesize_final_advice(plan, macro, geo, ranked_bases, council=council)
+    advice["council"] = {
+        "summary": council.get("summary"), "consensus": council.get("consensus"),
+        "dissent": council.get("dissent"), "net_tilt": council.get("net_tilt"),
+        "members": [{"name_zh": v["name_zh"], "school": v["school"],
+                     "stance": v["stance"], "relevance": v["relevance"]}
+                    for v in council.get("council", [])],
+    } if council else None
     advice["digest"] = final_digest(advice)
     return advice
