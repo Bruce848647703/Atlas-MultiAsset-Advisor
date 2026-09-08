@@ -70,6 +70,11 @@ def _render_final_advice(adv: Dict, plan: Plan) -> str:
     if council:
         L.append("### 分析师智囊团投票（约30选5，相关度加权）")
         L.append(f"> {council.get('summary', '')}")
+        dv = council.get("divergence") or {}
+        if dv:
+            L.append(f"**分歧度**: {dv.get('score', 0):.2f}（{dv.get('level', '—')}）"
+                     f" — 分歧越高，智囊团对配置的影响越被衰减；"
+                     f"高度分歧时应以量化基础与纪律为主。")
         net = council.get("net_tilt", {})
         if net:
             tilt_txt = "、".join(f"{c} {v:+.2f}" for c, v in

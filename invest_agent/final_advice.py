@@ -171,10 +171,14 @@ def synthesize_final_advice(plan, macro_advice=None, geo=None,
     cw = _class_weights_from_plan(plan)
     cw = _apply_macro_tilt(cw, macro_advice)
     cw = _apply_geo_tilt(cw, geo)
-    # analyst council weighted vote refines the tilt
+    # analyst council weighted vote refines the tilt — its influence is DAMPED
+    # by divergence: a split council gets less say, a unanimous one gets more
+    div_score = 0.0
     if council and council.get("net_tilt"):
+        div_score = float((council.get("divergence") or {}).get("score", 0.0))
+        eff_strength = council_strength * (1.0 - div_score)
         cw = _apply_council_tilt(cw, council["net_tilt"], plan.class_caps,
-                                 council_strength)
+                                 eff_strength)
     cw = _clip_caps(cw, plan.class_caps)
     # renormalize after clipping
     tot = sum(cw.values())
@@ -214,6 +218,12 @@ def synthesize_final_advice(plan, macro_advice=None, geo=None,
     thesis_lines.append(
         f"在上述研判下对量化基础配置(策略: {plan.strategy.name_zh})做了有机倾斜，"
         f"并按适当性上限约束、落到摩擦最优的全球 base。")
+    # council divergence modulated the council's influence — surface it
+    if council and council.get("divergence"):
+        dv = council["divergence"]
+        thesis_lines.append(
+            f"分析师智囊团分歧度 {dv['score']:.2f}（{dv['level']}），"
+            f"其投票对配置的影响已按分歧度衰减为 {100*(1-dv['score']):.0f}%。")
     if base_map:
         place = "；".join(f"{c}→{v['base']}" for c, v in list(base_map.items())[:4])
         thesis_lines.append(f"落位: {place}。")
@@ -236,6 +246,9 @@ def synthesize_final_advice(plan, macro_advice=None, geo=None,
         "overlays": {
             "macro_stance": {a["class"]: a["stance"] for a in (macro_advice or {}).get("advice", [])},
             "geo_regime": regime, "geo_appetite": appetite, "geo_themes": themes,
+            "council_divergence": ((council or {}).get("divergence") or {}).get("score"),
+            "council_effective_strength": (council_strength * (1.0 - div_score))
+            if (council and council.get("net_tilt")) else None,
         },
         "thesis": "".join(thesis_lines),
         "actions": actions,
@@ -303,6 +316,7 @@ def build_final_advice(plan, profile, asset_profile=None,
     advice["council"] = {
         "summary": council.get("summary"), "consensus": council.get("consensus"),
         "dissent": council.get("dissent"), "net_tilt": council.get("net_tilt"),
+        "divergence": council.get("divergence"),
         "members": [{"name_zh": v["name_zh"], "school": v["school"],
                      "stance": v["stance"], "relevance": v["relevance"]}
                     for v in council.get("council", [])],

@@ -163,13 +163,20 @@ Cathie Wood, O'Neil, Livermore, Asness, Thorp, ...). For each plan the council:
 1. **Scores every analyst for directional match** against the current context
    (plan class weights, geo regime, strategy tags, suitability tier, crypto presence);
 2. **Selects the top-5** most relevant lenses;
-3. **Renders each persona's view** — stance (offensive/neutral/defensive), advice tied
-   to the current allocation + macro view, class tilts, and their signature principle;
+3. **Renders each persona's view** — a *personalized* stance derived from the
+   analyst's own numeric posture (so contrarians genuinely dissent from momentum
+   analysts even in the same regime), advice tied to the current allocation +
+   macro view, class tilts, and their signature principle;
 4. **Aggregates a consensus + dissent** and a one-paragraph summary;
 5. **Weighted vote → net tilt**: each analyst casts a relevance-weighted numeric
    ballot per asset class; the aggregated net tilt (in [-1,1]) **feeds back into the
    final allocation** (`final_advice._apply_council_tilt`) as a bounded overlay —
-   the council refines, it does not override the quant+macro+geo fusion.
+   the council refines, it does not override the quant+macro+geo fusion;
+6. **Divergence indicator** (`council_divergence`): `0.7·tilt-std + 0.3·stance-split`,
+   scored 0–1 and leveled (高度共识 <0.20 / 中度分歧 <0.45 / 高度分歧). **The council's
+   influence on the allocation is automatically damped by divergence**
+   (`effective_strength = strength × (1 − divergence)`) and a caution is printed —
+   a split panel should make you *less* confident, not more.
 
 Example: a C5 crypto-heavy risk-on plan selects Wood / Andreessen / Simons / Asness /
 Lynch; their weighted vote pushes equity+crypto up and bonds down, and the final
@@ -338,7 +345,7 @@ scripts/run_demo.py         dashboard/app.py (streamlit)
 training/         # README / generate_sft_data.py / build_real_dataset.py /
                   # eval/(compliance + requirement benchmark) / finetune/
 examples/factor_library_sample/  # factor-library sample (full lib: factors.data_dir)
-tests/            # 120 tests
+tests/            # 125 tests
 .streamlit/config.toml + dashboard/style.py  # Jane Street-style light theme
 ```
 

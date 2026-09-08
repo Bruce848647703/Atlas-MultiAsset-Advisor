@@ -104,3 +104,62 @@ def test_build_council_includes_vote():
                            tier="C5", tags=["momentum"], crypto=True), n=5)
     assert "net_tilt" in c and "votes" in c
     assert len(c["votes"]) == 5
+
+
+# ---- divergence -----------------------------------------------------------
+def test_build_council_includes_divergence():
+    c = build_council(_ctx(regime="risk-on",
+                           plan_classes={"equity_global": 0.6, "crypto": 0.1},
+                           tier="C5", tags=["momentum"], crypto=True), n=5)
+    dv = c["divergence"]
+    assert 0.0 <= dv["score"] <= 1.0
+    assert dv["level"] in ("高度共识", "中度分歧", "高度分歧")
+    assert dv["level"] in c["summary"] or "分歧" in c["summary"] or "共识" in c["summary"]
+
+
+def test_divergence_low_for_homogeneous_council():
+    # all-offensive pick in risk-on -> tilts agree -> low divergence
+    ctx = _ctx(regime="risk-on",
+               plan_classes={"equity_global": 0.5, "crypto": 0.2, "equity_cn": 0.3},
+               tier="C5", tags=["aggressive", "crypto"], crypto=True)
+    c = build_council(ctx, n=5)
+    assert c["divergence"]["score"] < 0.35
+
+
+def test_divergence_high_for_mixed_votes():
+    from invest_agent.analysts import council_divergence
+    # hand-crafted split ballots: half strongly bullish, half strongly bearish
+    votes = [
+        {"weight": 1.0, "tilt": {"equity_global": 0.9, "fixed_income": -0.9}},
+        {"weight": 1.0, "tilt": {"equity_global": -0.9, "fixed_income": 0.9}},
+        {"weight": 1.0, "tilt": {"equity_global": 0.8, "fixed_income": -0.8}},
+        {"weight": 1.0, "tilt": {"equity_global": -0.8, "fixed_income": 0.8}},
+    ]
+    views = [{"stance": "偏进攻"}, {"stance": "偏防御"},
+             {"stance": "偏进攻"}, {"stance": "偏防御"}]
+    dv = council_divergence(votes, views, plan_classes={"equity_global": 1.0})
+    assert dv["score"] > 0.5
+    assert dv["level"] == "高度分歧"
+    assert abs(dv["stance_divergence"] - 0.5) < 1e-9   # 2v2 -> majority share 0.5
+
+
+def test_divergence_damps_council_influence():
+    from invest_agent.final_advice import _apply_council_tilt
+    cw = {"equity_global": 0.5, "fixed_income": 0.5}
+    caps = {"equity_global": 1.0, "fixed_income": 1.0}
+    net = {"equity_global": 0.8, "fixed_income": -0.8}
+    full = _apply_council_tilt(dict(cw), net, caps, strength=0.5)
+    damped = _apply_council_tilt(dict(cw), net, caps, strength=0.5 * 0.3)
+    # damped (high-divergence) adjustment moves weights less
+    assert abs(damped["equity_global"] - 0.5) < abs(full["equity_global"] - 0.5)
+
+
+def test_personalized_stance_can_dissent():
+    """A contrarian must be able to dissent from momentum analysts."""
+    from invest_agent.analysts import analyst_view
+    burry = next(x for x in REGISTRY if x.id == "burry")
+    wood = next(x for x in REGISTRY if x.id == "wood")
+    ctx = _ctx(regime="risk-on", plan_classes={"equity_global": 0.6},
+               tier="C5", tags=["aggressive"])
+    assert analyst_view(wood, ctx)["stance"] == "偏进攻"
+    assert analyst_view(burry, ctx)["stance"] != "偏进攻"

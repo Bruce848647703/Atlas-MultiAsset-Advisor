@@ -407,8 +407,11 @@ if _fa and not _fa.get("error"):
     st.dataframe(_fa_rows, hide_index=True, use_container_width=True)
     _fa_council = _fa.get("council")
     if _fa_council:
+        _dv = _fa_council.get("divergence") or {}
+        _dv_txt = (f" · 分歧度 {_dv.get('score',0):.2f}({_dv.get('level','—')}, "
+                   f"影响力已衰减至 {100*(1-_dv.get('score',0)):.0f}%)") if _dv else ""
         st.markdown(f"**🧑‍💼 智囊团投票**（约30选5，相关度加权，已按此微调上方配置）："
-                    f"共识 **{_fa_council.get('consensus','—')}**")
+                    f"共识 **{_fa_council.get('consensus','—')}**{_dv_txt}")
         _net = _fa_council.get("net_tilt", {})
         if _net:
             _nt = "、".join(f"{c} {v:+.2f}" for c, v in
@@ -443,8 +446,18 @@ if _gen_council:
             st.session_state["atlas_council"] = {"error": str(_ce)}
 _cc = st.session_state.get("atlas_council")
 if _cc and not _cc.get("error"):
-    st.success(f"共识研判: **{_cc['consensus']}** · 候选池 {_cc['n_analysts_total']} 位"
-               + (f" · 异议: {'、'.join(_cc['dissent'])}" if _cc.get("dissent") else ""))
+    _dv = _cc.get("divergence") or {}
+    _dv_metric = f"{_dv.get('score', 0):.2f}" if _dv else "—"
+    _dv_level = _dv.get("level", "—") if _dv else "—"
+    _dc1, _dc2 = st.columns([3, 1])
+    with _dc1:
+        st.success(f"共识研判: **{_cc['consensus']}** · 候选池 {_cc['n_analysts_total']} 位"
+                   + (f" · 异议: {'、'.join(_cc['dissent'])}" if _cc.get("dissent") else ""))
+    with _dc2:
+        st.metric("分歧度", _dv_metric, _dv_level,
+                  delta_color="inverse")
+    if _dv.get("score", 0) >= 0.45:
+        st.warning("⚠ 智囊团分歧显著：建议降低主观观点权重，以量化基础配置与纪律为主。")
     st.caption(_cc["summary"])
     for _v in _cc["council"]:
         with st.container():

@@ -244,27 +244,23 @@ def select_analysts(ctx: Dict, n: int = 5) -> List[Analyst]:
 # ---------------------------------------------------------------------------
 # Persona advice generation (deterministic, rule-driven)
 # ---------------------------------------------------------------------------
-_REGIME_TILT = {
-    "risk-on":  {"equity": +1, "fixed_income": -1, "cash": -1, "commodity": +1},
-    "risk-off": {"equity": -1, "fixed_income": +1, "cash": +1, "commodity": +1},
-    "neutral":  {"equity": 0, "fixed_income": 0, "cash": 0, "commodity": 0},
-}
-
-
-def _stance_from_regime(regime: str) -> str:
-    return {"risk-on": "偏进攻", "risk-off": "偏防御"}.get(regime, "中性")
-
-
 def analyst_view(a: Analyst, ctx: Dict) -> Dict:
     """Render one analyst's view on the current allocation."""
     regime = ctx.get("regime", "neutral")
     plan_classes = ctx.get("plan_classes", {})
     macro = ctx.get("macro_stance", {})
-    stance = _stance_from_regime(regime)
+
+    # numeric tilt drives a PERSONALIZED stance (risk assets vs defensive),
+    # so contrarians genuinely dissent from momentum analysts in the same regime
+    numeric = _numeric_tilt(a, regime)
+    risky_mean = (numeric.get("equity_cn", 0.0) + numeric.get("equity_global", 0.0)
+                  + numeric.get("crypto", 0.0)) / 3.0
+    defensive_mean = (numeric.get("fixed_income", 0.0) + numeric.get("cash", 0.0)) / 2.0
+    posture = risky_mean - defensive_mean
+    stance = "偏进攻" if posture > 0.2 else ("偏防御" if posture < -0.2 else "中性")
 
     # persona tilt: combine their tag bias with the current regime
     tilt: Dict[str, str] = {}
-    base = _REGIME_TILT.get(regime, _REGIME_TILT["neutral"])
     tags = set(a.tags)
     if "value" in tags or "defensive" in tags:
         tilt["fixed_income"] = "增配"; tilt["equity_global"] = "谨慎追高"
@@ -294,7 +290,7 @@ def analyst_view(a: Analyst, ctx: Dict) -> Dict:
             macro_note = f"结合大类观点：{c} 当前{st}。"
             break
 
-    advice = (f"从{a.school}视角看，当前局势研判为「{stance}」。"
+    advice = (f"从{a.school}视角看，本人当前研判「{stance}」。"
               f"{a.lens.rstrip('。')}。")
     tilt_txt = "；".join(f"{k}:{v}" for k, v in list(tilt.items())[:4])
     return {
@@ -303,6 +299,7 @@ def analyst_view(a: Analyst, ctx: Dict) -> Dict:
         "philosophy": a.philosophy,
         "focus": "、".join(a.focus_classes),
         "tilt": tilt,
+        "numeric_tilt": numeric,
         "advice": f"{advice}{macro_note}",
         "tilt_text": tilt_txt,
         "signature": a.signature,
@@ -311,16 +308,21 @@ def analyst_view(a: Analyst, ctx: Dict) -> Dict:
 
 
 def build_council(ctx: Dict, n: int = 5) -> Dict:
-    """Select top-n analysts, render the council, and aggregate a weighted vote."""
+    """Select top-n analysts, render the council, aggregate a weighted vote,
+    and measure divergence (higher heterogeneity => more caution)."""
     picked = select_analysts(ctx, n=n)
     views = [analyst_view(a, ctx) for a in picked]
     # aggregate stance
     from collections import Counter
     stances = Counter(v["stance"] for v in views)
     consensus = stances.most_common(1)[0][0] if stances else "中性"
-    # dissent: is there a clear minority?
+    # dissent: analysts whose personalized stance differs from the majority
     dissent = [v["name_zh"] for v in views if v["stance"] != consensus]
     vote = council_vote(ctx, n=n)
+    divergence = council_divergence(vote["votes"], views,
+                                    plan_classes=ctx.get("plan_classes"))
+    summary = _council_summary(views, consensus, dissent)
+    summary += _DIVERGENCE_CAUTION.get(divergence["level"], "")
     return {
         "regime": ctx.get("regime", "neutral"),
         "consensus": consensus,
@@ -329,7 +331,8 @@ def build_council(ctx: Dict, n: int = 5) -> Dict:
         "council": views,
         "net_tilt": vote["net_tilt"],
         "votes": vote["votes"],
-        "summary": _council_summary(views, consensus, dissent),
+        "divergence": divergence,
+        "summary": summary,
     }
 
 
@@ -408,4 +411,60 @@ def council_vote(ctx: Dict, n: int = 5) -> Dict:
     net = {c: round(v / total_w, 3) for c, v in agg.items()} if total_w else {}
     return {"regime": regime, "net_tilt": net, "votes": votes,
             "total_weight": round(total_w, 3)}
+
+
+# ---------------------------------------------------------------------------
+# Divergence / disagreement — higher heterogeneity => more caution
+# ---------------------------------------------------------------------------
+def council_divergence(votes: List[Dict], views: List[Dict],
+                       plan_classes: Optional[Dict[str, float]] = None) -> Dict:
+    """Measure cross-analyst disagreement.
+
+    Two components:
+      * tilt_divergence   — relevance-weighted std of analysts' numeric tilts
+                            per class (aggregated by the plan's class exposure)
+      * stance_divergence — 1 − majority share of personalized stances
+    score = 0.7·tilt + 0.3·stance, in [0,1]. Interpretation:
+      <0.20 高度共识 | 0.20-0.45 中度分歧 | >0.45 高度分歧(建议降低置信、以量化基础为主)
+    """
+    n = len(votes)
+    if n == 0:
+        return {"score": 0.0, "level": "—", "tilt_divergence": 0.0,
+                "stance_divergence": 0.0}
+
+    classes = sorted({c for v in votes for c in v["tilt"]})
+    total_w = sum(v["weight"] for v in votes) or 1.0
+    per_class: Dict[str, float] = {}
+    for c in classes:
+        vals = [(v["tilt"].get(c, 0.0), v["weight"]) for v in votes]
+        m = sum(x * w for x, w in vals) / total_w
+        var = sum(w * (x - m) ** 2 for x, w in vals) / total_w
+        per_class[c] = var ** 0.5
+
+    if plan_classes:
+        ws = {c: plan_classes.get(c, 0.0) for c in per_class}
+        tw = sum(ws.values())
+        tilt_div = (sum(per_class[c] * ws[c] for c in per_class) / tw) if tw > 0 \
+            else sum(per_class.values()) / len(per_class)
+    else:
+        tilt_div = sum(per_class.values()) / len(per_class)
+    tilt_div = min(1.0, float(tilt_div))
+
+    from collections import Counter
+    st = Counter(v["stance"] for v in views)
+    stance_div = 1.0 - (max(st.values()) / n) if n else 0.0
+
+    score = round(0.7 * tilt_div + 0.3 * stance_div, 3)
+    level = "高度共识" if score < 0.20 else ("中度分歧" if score < 0.45 else "高度分歧")
+    return {"score": score, "level": level,
+            "tilt_divergence": round(tilt_div, 3),
+            "stance_divergence": round(stance_div, 3),
+            "stance_counts": dict(st)}
+
+
+_DIVERGENCE_CAUTION = {
+    "高度共识": "智囊团意见高度一致，观点置信度较高。",
+    "中度分歧": "智囊团存在中等分歧，建议结合自身判断权衡采纳。",
+    "高度分歧": "⚠ 智囊团分歧显著：建议降低主观观点权重，以量化基础配置与纪律为主。",
+}
 
