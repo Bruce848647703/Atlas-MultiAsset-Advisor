@@ -287,7 +287,7 @@ pip install -r requirements.txt          # numpy/pandas/scipy/matplotlib/openai/
 
 make demo        # offline demo: mass / affluent / HNW → examples/demo_outputs/
 make lint        # ruff static checks (pip install -r requirements-dev.txt)
-make test        # unit + integration tests (163)
+make test        # unit + integration tests (170)
 make eval        # compliance gate (weight legality / caps / disclaimer / segment access)
 make sft         # generate 400 SFT conversations → training/sft_data/train.jsonl
 
@@ -388,8 +388,9 @@ scripts/run_demo.py         dashboard/app.py (streamlit)
 training/         # README / generate_sft_data.py / build_real_dataset.py /
                   # eval/(compliance + requirement benchmark) / finetune/
 examples/factor_library_sample/  # factor-library sample (full lib: ATLAS_FACTOR_DIR)
-tests/            # 163 tests (offline, synthetic provider)
+tests/            # 170 tests (offline, synthetic provider)
 .streamlit/config.toml + dashboard/style.py  # Jane Street-style light theme
+dashboard/i18n.py  # zh-Hans / en / zh-Hant UI catalog + entity labels
 .github/workflows/ci.yml  # GitHub Actions: lint + tests (3.10/3.12/3.13) + gates
 .gitlab-ci.yml + DEMO.md  # optional GitLab mirror CI & live-demo script
 Dockerfile / docker-compose.yml  # non-root runtime image + token-gated compose
@@ -407,6 +408,12 @@ hexagon motifs.
   dividers, top red rule, red hexagon section markers, thin scrollbars
 - Header: black ATLAS + red hexagon SVG (the JS signature hex)
 - Global index board is one dense quote table, green/red change coloring (pandas Styler, needs `jinja2>=3.1.2`)
+- **Three-language UI** (`dashboard/i18n.py`): a sidebar selector switches 简体中文 /
+  English / 繁體中文. UI labels, questionnaire, strategies, assets, basing, council,
+  tables and captions all follow the selected language; Traditional Chinese is
+  generated from the Simplified source via OpenCC (`zhconv`). External news/PDF
+  headlines stay in their source language (not machine-translated offline), and the
+  full Markdown report remains Chinese-only in English mode.
 
 ## 7. Deployment: Expose the Dashboard
 

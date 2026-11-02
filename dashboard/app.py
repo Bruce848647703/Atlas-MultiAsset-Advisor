@@ -16,15 +16,25 @@ import hmac
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _ROOT)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import streamlit as st  # noqa: E402
 
+from i18n import (  # noqa: E402
+    LANG_LABELS, LANGS, account_label, analyst_name, analyst_name_by_id,
+    analyst_name_from_zh, asset_name, asset_type_label, base_category_label,
+    cadence_label, class_label, divergence_label, index_label, liquidity_label,
+    note_label, objective_label, option_text, pick, question_text, regime_label, region_label,
+    school_label, segment_label, source_label, stance_label, strategy_name,
+    strategy_philosophy, t, theme_label, tier_label, to_hant,
+)
 from invest_agent.agent import InvestAgent  # noqa: E402
 from invest_agent.risk_profiler import QUESTIONS  # noqa: E402
 from invest_agent.strategy import STRATEGY_MENU  # noqa: E402
 
-st.set_page_config(page_title="Atlas Multi-Asset Advisor", layout="wide")
+st.set_page_config(page_title="Atlas · Multi-Asset Advisor", layout="wide")
 
 # Jane Street-style theme (dark, data-dense, tabular figures, gold accent)
 try:
@@ -43,17 +53,29 @@ st.markdown(_THEME_CSS, unsafe_allow_html=True)
 # Optional password gate (only enforced when ATLAS_ACCESS_TOKEN is set)
 # ----------------------------------------------------------------------
 _TOKEN = os.environ.get("ATLAS_ACCESS_TOKEN", "").strip()
+_lang0 = st.session_state.get("atlas_lang", "zh")
 if _TOKEN:
     if st.session_state.get("atlas_authed") is not True:
-        st.title("Atlas 多元资产投资顾问")
-        pwd = st.text_input("访问口令 Access token", type="password")
-        if st.button("进入 Enter"):
+        st.title(t("gate.title", _lang0))
+        pwd = st.text_input(t("gate.token", _lang0), type="password")
+        if st.button(t("gate.enter", _lang0)):
             if hmac.compare_digest(pwd, _TOKEN):
                 st.session_state["atlas_authed"] = True
                 st.rerun()
             else:
-                st.error("口令错误 / wrong token")
+                st.error(t("gate.wrong", _lang0))
         st.stop()
+
+with st.sidebar:
+    st.markdown("### 🌐 " + t("language", _lang0))
+    lang = st.selectbox(
+        "Language / 语言",
+        LANGS,
+        index=LANGS.index(_lang0),
+        format_func=lambda x: LANG_LABELS[x],
+        key="atlas_lang",
+        label_visibility="collapsed",
+    )
 
 st.markdown(
     """
@@ -68,13 +90,13 @@ st.markdown(
         <div style="font-size:1.9rem;font-weight:700;letter-spacing:-.02em;color:#1a1a1a;line-height:1;">
           ATLAS</div>
         <div style="font-size:.72rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:#6e7278;margin-top:.25rem;">
-          Multi-Asset Advisor · Family-Office Allocation</div>
+          {tagline}</div>
       </div>
     </div>
-    """,
+    """.replace("{tagline}", t("app.tagline", lang)),
     unsafe_allow_html=True,
 )
-st.caption("量化生成，仅供研究参考，不构成投资建议 (research only, NOT investment advice)")
+st.caption(t("app.disclaimer", lang))
 
 # Startup catch-up: if no factor-learning cycle ran recently, spawn a background
 # one so the agent keeps learning even without explicit user action.
@@ -87,10 +109,10 @@ except Exception:  # noqa: BLE001 - learning must never break the page
 # ----------------------------------------------------------------------
 # 全球市场指数看板 (形象工程, 常驻显示, 双源+缓存+降级)
 # ----------------------------------------------------------------------
-st.subheader("全球市场指数 · Global Market Indices")
+st.subheader(t("indices.title", lang))
 _gi_hdr1, _gi_hdr2 = st.columns([5, 1])
 with _gi_hdr2:
-    _gi_refresh = st.button("刷新指数", key="gi_refresh")
+    _gi_refresh = st.button(t("indices.refresh", lang), key="gi_refresh")
 if _gi_refresh or "atlas_indices" not in st.session_state:
     try:
         from invest_agent.global_indices import fetch_global_indices  # noqa: E402
@@ -99,22 +121,26 @@ if _gi_refresh or "atlas_indices" not in st.session_state:
         st.session_state["atlas_indices"] = {"source_ok": False,
                                              "note": str(_gie), "regions": {}}
 _gi = st.session_state.get("atlas_indices", {})
-_gi_hdr1.caption(f"更新于 {_gi.get('updated_at') or '—'} · "
-                 f"数据源 {'正常' if _gi.get('source_ok') else '降级'}"
-                 + (f" · {_gi['note']}" if _gi.get('note') else ""))
+_gi_src = t("indices.source_ok" if _gi.get("source_ok") else "indices.source_degraded", lang)
+_gi_hdr1.caption(t("indices.updated", lang, ts=_gi.get("updated_at") or "—")
+                 + " · " + _gi_src
+                 + (f" · {note_label(_gi['note'], lang)}" if _gi.get("note") else ""))
 
 _REGION_FLAG = {"中国内地": "🇨🇳", "亚太": "🌏", "欧洲": "🇪🇺", "美洲": "🌎"}
 _ORDER = ["中国内地", "亚太", "欧洲", "美洲"]
+_chg_col = t("indices.change", lang)
 _rows = []
 for _region in _ORDER:
     for _idx in _gi.get("regions", {}).get(_region, []):
         _chg = _idx.get("chg_pct")
+        _st_status = _idx.get("status", "")
         _rows.append({
-            "区域": _REGION_FLAG.get(_region, "") + " " + _region,
-            "指数": _idx["name"],
-            "现价": f"{_idx['price']:,.2f}" if _idx.get("price") is not None else "—",
-            "涨跌%": _chg,
-            "状态": _idx.get("status", "—"),
+            t("indices.region", lang): _REGION_FLAG.get(_region, "") + " " + region_label(_region, lang),
+            t("indices.index", lang): index_label(_idx["name"], lang),
+            t("indices.price", lang): f"{_idx['price']:,.2f}" if _idx.get("price") is not None else "—",
+            _chg_col: _chg,
+            t("indices.status", lang): t("indices.trading" if _st_status == "交易中" else "indices.closed", lang)
+            if _st_status else "—",
         })
 if _rows:
     import pandas as _pd  # noqa: E402
@@ -127,25 +153,25 @@ if _rows:
              if isinstance(v, (int, float)) and v > 0
              else ("color:#d0001d;font-weight:600;"
                    if isinstance(v, (int, float)) and v < 0 else ""),
-             subset=["涨跌%"])
-        .format({"涨跌%": lambda v: (f"{v:+.2f}" if isinstance(v, (int, float)) else "—")})
+             subset=[_chg_col])
+        .format({_chg_col: lambda v: (f"{v:+.2f}" if isinstance(v, (int, float)) else "—")})
         .set_properties(**{"text-align": "right"})
         .hide(axis="index")
     )
     st.dataframe(_styled, use_container_width=True, height=30 + 36 * len(_rows))
 else:
-    st.info("全球指数数据暂不可用")
+    st.info(t("indices.unavailable", lang))
 st.divider()
 
 # ----------------------------------------------------------------------
 # 全球政治经济局势板块 (独立于投资建议, 实时新闻 + 宏观趋势研判)
 # ----------------------------------------------------------------------
-st.subheader("全球政治经济局势 · Global Situation")
+st.subheader(t("geo.title", lang))
 _geo_col_btn, _geo_col_info = st.columns([1, 4])
 with _geo_col_btn:
-    _geo_refresh = st.button("刷新局势", key="geo_refresh")
+    _geo_refresh = st.button(t("geo.refresh", lang), key="geo_refresh")
 if _geo_refresh or "atlas_geo" not in st.session_state:
-    with st.spinner("聚合实时新闻并研判全球局势..."):
+    with st.spinner(t("geo.spinner", lang)):
         try:
             from invest_agent.geopolitics import (assess_global_situation,  # noqa: E402
                                                   fetch_global_news)
@@ -156,57 +182,67 @@ if _geo_refresh or "atlas_geo" not in st.session_state:
         except Exception as _ge:  # noqa: BLE001
             st.session_state["atlas_geo"] = {"error": str(_ge)}
 _g = st.session_state.get("atlas_geo", {})
+_ext = lambda s: to_hant(str(s)) if lang == "zh-Hant" else str(s)  # noqa: E731
 if _g.get("error"):
-    st.warning(f"局势板块暂不可用: {_g['error']}")
+    st.warning(t("geo.error", lang, err=_g["error"]))
 else:
     _gc1, _gc2, _gc3 = st.columns(3)
-    _gc1.metric("风险偏好", f"{_g['risk_appetite']:+.2f}")
-    _gc2.metric("研判", _g["regime"])
-    _gc3.metric("新闻样本", _g["n_items"])
-    _themes = "、".join(t["theme"] for t in _g.get("themes", [])) or "—"
-    st.caption(f"主导议题: {_themes} · 数据源: {', '.join(_g.get('sources_ok', [])) or '无'}")
-    with st.expander("关注事件 Watch list"):
+    _gc1.metric(t("geo.appetite", lang), f"{_g['risk_appetite']:+.2f}")
+    _gc2.metric(t("geo.regime", lang), regime_label(_g["regime"], lang))
+    _gc3.metric(t("geo.samples", lang), _g["n_items"])
+    _sep = ", " if lang == "en" else "、"
+    _themes = _sep.join(theme_label(x["theme"], lang) for x in _g.get("themes", [])) or "—"
+    _sources = _sep.join(source_label(x, lang) for x in _g.get("sources_ok", [])) \
+        or t("geo.none", lang)
+    st.caption(t("geo.themes", lang, themes=_themes) + " · " + t("geo.sources", lang, sources=_sources))
+    with st.expander(t("geo.watch", lang)):
         for _w in _g.get("watch_items", []):
-            st.text(f"• {_w[:60]}")
-    with st.expander("实时新闻流 News feed"):
+            st.text(f"• {_ext(_w)[:60]}")
+    with st.expander(t("geo.feed", lang)):
+        if lang == "en":
+            st.caption(t("intel.source_language", lang))
         for _n in _g.get("news_sample", []):
-            st.text(f"• {_n[:70]}")
+            st.text(f"• {_ext(_n)[:70]}")
 st.divider()
 
 # ----------------------------------------------------------------------
 # 家办式全球资产落位 Global Basing (资产画像问卷 + base 打分)
 # ----------------------------------------------------------------------
-st.subheader("家办 · 全球资产落位 · Global Basing")
-st.caption("根据您的适当性等级与资产画像，列出全球适合的落位/通道(境内/跨境/离岸)并打分，"
-           "评估摩擦(资本管制/税/汇兑/准入/合规)。仅供研究参考。")
-with st.expander("① 资产画像 Asset Profile", expanded=True):
+st.subheader(t("base.title", lang))
+st.caption(t("base.intro", lang))
+with st.expander(t("base.profile", lang), expanded=True):
     from invest_agent.global_base import (ASSET_TYPE_OPTIONS,  # noqa: E402
                                           OVERSEAS_ACCOUNT_OPTIONS)
+    _ap_type_labels = {o[0]: asset_type_label(o[0], lang) for o in ASSET_TYPE_OPTIONS}
+    _ap_acct_labels = {o[0]: account_label(o[0], lang) for o in OVERSEAS_ACCOUNT_OPTIONS}
+    _ap_type_by_label = {v: k for k, v in _ap_type_labels.items()}
+    _ap_acct_by_label = {v: k for k, v in _ap_acct_labels.items()}
     _ap_c1, _ap_c2 = st.columns(2)
     with _ap_c1:
         _ap_types = st.multiselect(
-            "当前持有的资产类型", [o[1] for o in ASSET_TYPE_OPTIONS],
-            default=["现金/存款/货基", "境内公募基金"])
-        _ap_overseas_pct = st.slider("现有资产中境外占比 (%)", 0, 100, 0, 5)
+            t("base.holdings", lang), list(_ap_type_by_label),
+            default=[asset_type_label("cash_deposit", lang), asset_type_label("cn_fund", lang)])
+        _ap_overseas_pct = st.slider(t("base.overseas_pct", lang), 0, 100, 0, 5)
     with _ap_c2:
         _ap_accts = st.multiselect(
-            "已开立的境外账户", [o[1] for o in OVERSEAS_ACCOUNT_OPTIONS],
-            default=["暂无境外账户"])
-        _ap_liq = st.selectbox("流动性需求", ["低(长期不动用)", "中", "高(随时可能用)"], index=1)
-    _ap_capital = st.number_input("总资产规模 (CNY)", min_value=10_000, value=500_000,
+            t("base.accounts", lang), list(_ap_acct_by_label),
+            default=[account_label("none", lang)])
+        _liq_opts = [(k, liquidity_label(k, lang)) for k in ("low", "medium", "high")]
+        _ap_liq = st.selectbox(t("base.liquidity", lang), [x[1] for x in _liq_opts], index=1)
+    _ap_capital = st.number_input(t("base.capital", lang), min_value=10_000, value=500_000,
                                   step=50_000)
-    _ap_gen = st.button("生成落位建议", key="gen_bases")
+    _ap_gen = st.button(t("base.generate", lang), key="gen_bases")
 if _ap_gen:
     from invest_agent.global_base import AssetProfile, recommend_bases  # noqa: E402
-    _type_id = {o[1]: o[0] for o in ASSET_TYPE_OPTIONS}
-    _acct_id = {o[1]: o[0] for o in OVERSEAS_ACCOUNT_OPTIONS}
-    _liq_map = {"低(长期不动用)": "low", "中": "medium", "高(随时可能用)": "high"}
+    _ap_type_ids = [_ap_type_by_label[x] for x in _ap_types if x in _ap_type_by_label]
+    _liq_map = {liquidity_label(k, lang): k for k in ("low", "medium", "high")}
     _ap = AssetProfile(
-        asset_types=[_type_id[t] for t in _ap_types if t in _type_id],
+        asset_types=_ap_type_ids,
         overseas_pct=float(_ap_overseas_pct),
-        overseas_accounts=[_acct_id[a] for a in _ap_accts if a in _acct_id] or ["none"],
+        overseas_accounts=[_ap_acct_by_label[a] for a in _ap_accts
+                           if a in _ap_acct_by_label] or ["none"],
         total_capital=float(_ap_capital),
-        crypto_held=("加密货币" in _ap_types),
+        crypto_held=("crypto" in _ap_type_ids),
         liquidity_need=_liq_map.get(_ap_liq, "medium"),
     )
     # risk tier: from the last generated plan (session), else C3 default
@@ -221,106 +257,119 @@ if _ap_gen:
                                        "ranked": recommend_bases(_tier, _ap)}
 if st.session_state.get("atlas_bases"):
     _b = st.session_state["atlas_bases"]
-    st.markdown(f"**② 全球落位建议（适当性 {_b['tier']}）— 按「适配度×(1−摩擦)」打分**")
-    _cat_label = {"onshore": "境内", "crossborder": "跨境通道", "offshore": "离岸"}
+    st.markdown(t("base.result_title", lang, tier=_b["tier"]))
     _brows = []
     for i, r in enumerate(_b["ranked"], 1):
+        _b_reasons = ("; ".join(r["reasons"][:2]) or t("base.fallback_reason", lang)) \
+            if lang != "en" else t("base.fallback_reason", lang)
+        if lang == "zh-Hant":
+            _b_reasons = to_hant(_b_reasons)
         _brows.append({
-            "#": i, "Base": r["name_zh"], "类别": _cat_label.get(r["category"], r["category"]),
-            "评分": r["score"], "摩擦": r["friction"],
-            "门槛": (f"¥{r['min_capital']:,.0f}" if r["min_capital"] else "无"),
-            "要点": "; ".join(r["reasons"][:2]) or "综合适配",
+            "#": i,
+            t("base.col_name", lang): r["name_en"] if lang == "en" else
+            pick(r["name_zh"], r["name_en"], lang),
+            t("base.col_category", lang): base_category_label(r["category"], lang),
+            t("base.col_score", lang): r["score"], t("base.col_friction", lang): r["friction"],
+            t("base.col_min", lang): (f"¥{r['min_capital']:,.0f}" if r["min_capital"]
+                                      else t("base.none", lang)),
+            t("base.col_highlights", lang): _b_reasons,
         })
     st.dataframe(_brows, hide_index=True, use_container_width=True)
-    with st.expander("各 base 详情与适配分解"):
+    with st.expander(t("base.details", lang)):
         for r in _b["ranked"]:
             fb = r["fit_breakdown"]
-            st.markdown(f"**{r['name_zh']}** ({_cat_label.get(r['category'],'')}) · "
-                        f"评分 {r['score']} · 摩擦 {r['friction']}")
-            st.caption(f"适配: 资本{fb['capital']} · 资产{fb['asset']} · "
-                       f"风险{fb['risk']} · 经验{fb['experience']} · "
-                       f"境外{fb.get('overseas','—')} | {r['desc']} {r['notes']}")
-    st.caption("原则: 优先低摩擦境内通道打底 → 跨境通道(QDII/港通)拓展 → "
-               "离岸(港/新/美)仅补境内无法覆盖之需求; 资金出境务必合规。")
+            _bname = r["name_en"] if lang == "en" else pick(r["name_zh"], r["name_en"], lang)
+            st.markdown(f"**{_bname}** ({base_category_label(r['category'], lang)}) · "
+                        f"{t('base.col_score', lang)} {r['score']} · "
+                        f"{t('base.col_friction', lang)} {r['friction']}")
+            _fit = (f"Fit: capital {fb['capital']} · assets {fb['asset']} · "
+                    f"risk {fb['risk']} · experience {fb['experience']} · "
+                    f"overseas {fb.get('overseas','—')}") if lang == "en" else \
+                (f"适配: 资本{fb['capital']} · 资产{fb['asset']} · "
+                 f"风险{fb['risk']} · 经验{fb['experience']} · "
+                 f"境外{fb.get('overseas','—')}")
+            if lang == "zh-Hant":
+                _fit = to_hant(_fit)
+            _desc = "" if lang == "en" else to_hant(f"{r['desc']} {r['notes']}") \
+                if lang == "zh-Hant" else f"{r['desc']} {r['notes']}"
+            st.caption(_fit + (f" | {_desc}" if _desc else ""))
+    st.caption(t("base.principle", lang))
 st.divider()
 
 # ----------------------------------------------------------------------
 # Sidebar: investor inputs
 # ----------------------------------------------------------------------
 with st.sidebar:
-    st.header("投资者输入 Investor Inputs")
-    capital = st.number_input("可投资本金 (CNY)", min_value=10_000, value=300_000, step=10_000)
-    free_text = st.text_input("风险态度 / 目标补充",
-                              value="能接受短期波动，但不想亏掉本金")
-    use_contrib = st.checkbox("自定义每月定投额", value=False)
+    st.header(t("side.inputs", lang))
+    capital = st.number_input(t("side.capital", lang), min_value=10_000, value=300_000, step=10_000)
+    free_text = st.text_input(t("side.free_text", lang),
+                              value=pick("能接受短期波动，但不想亏掉本金",
+                                         "Can tolerate short-term swings, but not losing principal", lang))
+    use_contrib = st.checkbox(t("side.custom_contrib", lang), value=False)
     monthly_contrib = st.number_input(
-        "每月定投 (CNY)", min_value=0, value=3000, step=500,
+        t("side.monthly", lang), min_value=0, value=3000, step=500,
         disabled=not use_contrib)
     provider = st.radio(
-        "数据源 Data source",
+        t("side.provider", lang),
         ["synthetic", "merged"],
-        help="synthetic=离线合成市场；merged=akshare真实行情+合成补齐",
+        help=t("side.provider_help", lang),
     )
     strategy_choice = st.selectbox(
-        "策略 Strategy",
+        t("side.strategy", lang),
         ["auto"] + [s.id for s in STRATEGY_MENU],
-        format_func=lambda x: "自动选择 (按画像匹配)" if x == "auto" else next(
-            f"{s.name_zh} ({s.cadence_label})" for s in STRATEGY_MENU if s.id == x),
+        format_func=lambda x: t("side.auto", lang) if x == "auto" else next(
+            f"{strategy_name(s, lang)} ({cadence_label(s.cadence, lang)})"
+            for s in STRATEGY_MENU if s.id == x),
     )
-    with st.expander("主观择时 Market Timing (可选)"):
-        st.caption("表达你对各类资产的多空观点：-1=强烈看空, 0=中性, +1=强烈看多。"
-                   "观点将注入预期收益，仅影响今日配置，不改变历史回测。")
-        use_timing = st.checkbox("启用主观择时", value=False)
+    with st.expander(t("side.timing", lang)):
+        st.caption(t("side.timing_help", lang))
+        use_timing = st.checkbox(t("side.timing_enable", lang), value=False)
         _t_sliders = {}
-        for _cls, _lbl in [("equity_cn", "A股"), ("equity_global", "海外股票"),
-                           ("crypto", "加密货币"), ("commodity", "商品/黄金"),
-                           ("fixed_income", "债券"), ("hybrid", "固收+(二级债基)")]:
-            _t_sliders[_cls] = st.slider(_lbl, -1.0, 1.0, 0.0, 0.25,
+        for _cls in ("equity_cn", "equity_global", "crypto", "commodity",
+                     "fixed_income", "hybrid"):
+            _t_sliders[_cls] = st.slider(class_label(_cls, lang), -1.0, 1.0, 0.0, 0.25,
                                          disabled=not use_timing, key=f"t_{_cls}")
-        _timing_free = st.text_input("或用一句话描述(优先)", "",
-                                     placeholder="例: 短期看空A股，看多加密",
+        _timing_free = st.text_input(t("side.timing_text", lang), "",
+                                     placeholder=t("side.timing_placeholder", lang),
                                      disabled=not use_timing)
-    with st.expander("策略菜单 Strategy menu"):
+    with st.expander(t("side.menu", lang)):
         st.dataframe(
-            [{"策略": f"{s.name_zh}", "哲学": s.philosophy, "目标": s.objective,
-              "调仓": s.cadence_label, "适用": f"{s.min_tier}-{s.max_tier}"}
+            [{t("side.menu_strategy", lang): strategy_name(s, lang),
+              t("side.menu_philosophy", lang): strategy_philosophy(s, lang),
+              t("side.menu_objective", lang): objective_label(s.objective, lang),
+              t("side.menu_cadence", lang): cadence_label(s.cadence, lang),
+              t("side.menu_tiers", lang): f"{s.min_tier}-{s.max_tier}"}
              for s in STRATEGY_MENU],
             hide_index=True,
         )
-    with st.expander("数据源说明 About data sources"):
-        st.markdown(
-            "**synthetic（离线）**: 固定种子模拟的多资产世界，内置熊市/繁荣/"
-            "币圈闪崩情景，完全可复现、无需网络，适合研究与演示。\n\n"
-            "**merged（真实+补齐）**: 通过 akshare 拉取 A股ETF 与公募基金的"
-            "真实月度净值（首次联网，之后缓存在 data_cache/）；加密货币与期货"
-            "列由合成数据自动补齐。"
-        )
+    with st.expander(t("side.about", lang)):
+        st.markdown(t("side.about_body", lang))
 
 # ----------------------------------------------------------------------
 # Questionnaire: ALWAYS rendered, before the generate button
 # ----------------------------------------------------------------------
-st.subheader("① 适当性问卷 Suitability Questionnaire")
+st.subheader(t("q.title", lang))
 answers = {}
 cols = st.columns(3)
-for i, (_w, q_zh, _q_en, opts) in enumerate(QUESTIONS):
+for i, (_w, _q_zh, _q_en, opts) in enumerate(QUESTIONS):
     with cols[i % 3]:
         answers[i] = st.selectbox(
-            f"Q{i}. {q_zh}",
+            t("q.prefix", lang, n=i, q=question_text((_w, _q_zh, _q_en, opts), lang)),
             range(len(opts)),
             index=2,
-            format_func=lambda j, o=opts: o[j][0],
+            format_func=lambda j, o=opts: option_text(o[j], lang),
             key=f"atlas_q{i}",
         )
 
 # ----------------------------------------------------------------------
 # Generate
 # ----------------------------------------------------------------------
-st.subheader("② 生成方案 Generate")
+st.subheader(t("gen.title", lang))
 c_btn, c_note = st.columns([1, 3])
 with c_btn:
-    run = st.button("生成方案 Generate Plan", type="primary", use_container_width=True)
+    run = st.button(t("gen.button", lang), type="primary", use_container_width=True)
 with c_note:
-    st.caption("修改上方任意输入后再次点击即可重新生成；结果会保留到下一次生成。")
+    st.caption(t("gen.note", lang))
 
 if run:
     agent = InvestAgent(provider_name=provider, output_dir="examples/demo_outputs")
@@ -333,7 +382,7 @@ if run:
             _nz = {c: v for c, v in _t_sliders.items() if abs(v) > 1e-9}
             _timing_arg = _nz or None
     try:
-        with st.spinner("量化计算中 (策略菜单回测 + 组合优化 + 回测)..."):
+        with st.spinner(t("gen.spinner", lang)):
             res = agent.offline_plan(
                 answers,
                 capital=float(capital),
@@ -344,42 +393,48 @@ if run:
             )
         st.session_state["atlas_result"] = res
     except Exception as e:  # noqa: BLE001 - friendly error instead of traceback
-        st.error(f"生成失败: {type(e).__name__}: {e}\n请调整问卷/策略选择后重试，"
-                 f"或在侧边栏改用 auto 策略。")
+        st.error(t("gen.error", lang, err=f"{type(e).__name__}: {e}"))
 
 # ----------------------------------------------------------------------
 # Results (persisted across re-runs)
 # ----------------------------------------------------------------------
 res = st.session_state.get("atlas_result")
 if res is None:
-    st.info("请先完成问卷并点击「生成方案」。")
+    st.info(t("gen.need_input", lang))
     st.stop()
 
 plan, profile = res["plan"], res["profile"]
-st.subheader(f"③ 结果: 适当性 {profile.tier} {profile.tier_info['label_zh']} "
-             f"(评分 {profile.score:.0f}) · 客群 {plan.segment} · 数据源 {provider}")
+st.subheader(t("res.title", lang, tier=profile.tier,
+               tier_label=tier_label(profile.tier_info, lang),
+               score=profile.score, segment=segment_label(plan.segment, lang),
+               provider=provider))
 
 k1, k2, k3, k4 = st.columns(4)
-k1.metric("预期年化收益", f"{plan.expected['ann_return']:.1%}")
-k2.metric("年化波动", f"{plan.expected['ann_vol']:.1%}")
-k3.metric("夏普 (事前)", f"{plan.expected['sharpe_hint']:.2f}")
-k4.metric("回测最大回撤", f"{plan.backtest['max_drawdown']:.1%}")
+k1.metric(t("res.exp_return", lang), f"{plan.expected['ann_return']:.1%}")
+k2.metric(t("res.vol", lang), f"{plan.expected['ann_vol']:.1%}")
+k3.metric(t("res.sharpe", lang), f"{plan.expected['sharpe_hint']:.2f}")
+k4.metric(t("res.mdd", lang), f"{plan.backtest['max_drawdown']:.1%}")
 
 _st = plan.strategy
-st.success(f"所选策略: **{_st.name_zh} ({_st.name_en})** · 目标 `{_st.objective}` · "
-           f"调仓 `{_st.cadence_label}`")
-st.caption(_st.philosophy)
+st.success(t("res.selected", lang, name=strategy_name(_st, lang),
+             objective=objective_label(_st.objective, lang),
+             cadence=cadence_label(_st.cadence, lang)))
+st.caption(strategy_philosophy(_st, lang))
 if plan.timing:
-    _tl = "、".join(f"{c} {'看多' if v>0 else '看空'}{abs(v):.2f}" for c, v in plan.timing.items())
-    st.info(f"已注入主观择时: {_tl}（仅影响今日配置，不改变历史回测）")
+    _sep = "、 " if lang != "en" else ", "
+    _tl = _sep.join(
+        f"{class_label(c, lang)} {'看多' if v > 0 else '看空'}{abs(v):.2f}"
+        if lang != "en" else
+        f"{class_label(c, lang)} {'bullish' if v > 0 else 'bearish'} {abs(v):.2f}"
+        for c, v in plan.timing.items())
+    st.info(t("res.timing", lang, views=_tl))
 
 # ---- ④ 最终综合建议 (量化×大类×地缘×落位 有机融合) ----
-st.subheader("④ 最终综合建议 Final Integrated Advice")
-st.caption("把量化配置 × 大类观点 × 全球政经局势 × 全球base落位 有机融合，"
-           "形成符合发展趋势、利益最大化的最终建议（含全球落位与执行清单）。")
+st.subheader(t("fa.title", lang))
+st.caption(t("fa.intro", lang))
 _fa_col1, _fa_col2 = st.columns([1, 3])
 with _fa_col1:
-    _gen_fa = st.button("生成最终建议", key="gen_final_advice", type="primary")
+    _gen_fa = st.button(t("fa.generate", lang), key="gen_final_advice", type="primary")
 if _gen_fa:
     from invest_agent.final_advice import build_final_advice  # noqa: E402
     from invest_agent.global_base import AssetProfile  # noqa: E402
@@ -388,7 +443,7 @@ if _gen_fa:
                           total_capital=float(capital))
     if st.session_state.get("atlas_asset_profile"):
         _ap_fa = st.session_state["atlas_asset_profile"]
-    with st.spinner("融合中: 大类观点 + 全球局势 + base落位 ..."):
+    with st.spinner(t("fa.spinner", lang)):
         try:
             _fa = build_final_advice(plan, profile, _ap_fa, provider_name=provider)
             st.session_state["atlas_final_advice"] = _fa
@@ -396,48 +451,101 @@ if _gen_fa:
             st.session_state["atlas_final_advice"] = {"error": str(_fae)}
 _fa = st.session_state.get("atlas_final_advice")
 if _fa and not _fa.get("error"):
-    st.markdown(f"**研判主线**: {_fa['thesis']}")
+    from invest_agent.global_base import GLOBAL_BASES  # noqa: E402
+    _base_en = {b.name_zh: b.name_en for b in GLOBAL_BASES}
+    _sep = ", " if lang == "en" else "、"
+
+    def _localized_base(name_zh: str) -> str:
+        if not name_zh or name_zh == "—":
+            return "—"
+        return _base_en.get(name_zh, name_zh) if lang == "en" \
+            else pick(name_zh, _base_en.get(name_zh, name_zh), lang)
+
     _ov = _fa.get("overlays", {})
-    st.caption(f"全球局势: {_ov.get('geo_regime','—')} (风险偏好 {_ov.get('geo_appetite',0):+.2f})"
-               f" · 议题: {_ov.get('geo_themes','—')}")
+    _macro_stance = _ov.get("macro_stance", {})
+    _over_names = [class_label(c, lang) for c, s in _macro_stance.items() if s == "超配"]
+    _under_names = [class_label(c, lang) for c, s in _macro_stance.items() if s == "低配"]
+    _themes_raw = str(_ov.get("geo_themes", "—"))
+    _themes = "—" if _themes_raw in ("", "—") else _sep.join(
+        theme_label(x, lang) for x in _themes_raw.split("、"))
+    if lang == "en":
+        _thesis = (f"Regime: {regime_label(_ov.get('geo_regime', '未知'), lang)} "
+                   f"(risk appetite {_ov.get('geo_appetite', 0):+.2f}); themes: {_themes}. ")
+        if _over_names:
+            _thesis += f"Macro overweight: {', '.join(_over_names)}. "
+        if _under_names:
+            _thesis += f"Underweight: {', '.join(_under_names)}. "
+        _thesis += (f"The baseline strategy ({strategy_name(plan.strategy, lang)}) was tilted within "
+                    f"suitability caps and mapped to the lowest-friction global bases.")
+    else:
+        _thesis = to_hant(_fa["thesis"]) if lang == "zh-Hant" else _fa["thesis"]
+    st.markdown(t("fa.thesis", lang, thesis=_thesis))
+    st.caption(t("fa.overlays", lang,
+                 regime=regime_label(_ov.get("geo_regime", "未知"), lang),
+                 appetite=_ov.get("geo_appetite", 0), themes=_themes))
     _fa_rows = []
     _bm = _fa.get("base_map", {})
     for _c, _w in _fa.get("final_class_weights", {}).items():
         _b = _bm.get(_c, {})
-        _fa_rows.append({"资产类别": _c, "最终权重": f"{_w:.1%}",
-                         "落位base": _b.get("base", "—"), "base评分": _b.get("score", "—"),
-                         "摩擦": _b.get("friction", "—")})
+        _fa_rows.append({
+            t("fa.class", lang): class_label(_c, lang),
+            t("fa.weight", lang): f"{_w:.1%}",
+            t("fa.base", lang): _localized_base(_b.get("base", "—")),
+            t("fa.base_score", lang): _b.get("score", "—"),
+            t("fa.friction", lang): _b.get("friction", "—"),
+        })
     st.dataframe(_fa_rows, hide_index=True, use_container_width=True)
     _fa_council = _fa.get("council")
     if _fa_council:
         _dv = _fa_council.get("divergence") or {}
-        _dv_txt = (f" · 分歧度 {_dv.get('score',0):.2f}({_dv.get('level','—')}, "
-                   f"影响力已衰减至 {100*(1-_dv.get('score',0)):.0f}%)") if _dv else ""
-        st.markdown(f"**🧑‍💼 智囊团投票**（约30选5，相关度加权，已按此微调上方配置）："
-                    f"共识 **{_fa_council.get('consensus','—')}**{_dv_txt}")
+        _dv_txt = ""
+        if _dv:
+            _dv_txt = t("fa.divergence", lang, score=_dv.get("score", 0),
+                        level=divergence_label(_dv.get("level", "—"), lang),
+                        influence=100 * (1 - _dv.get("score", 0)))
+        st.markdown(t("fa.council", lang,
+                      consensus=stance_label(_fa_council.get("consensus", "—"), lang),
+                      divergence=_dv_txt))
         _net = _fa_council.get("net_tilt", {})
         if _net:
-            _nt = "、".join(f"{c} {v:+.2f}" for c, v in
-                           sorted(_net.items(), key=lambda kv: -kv[1]) if abs(v) > 0.05)
-            st.caption(f"净仓位信号: {_nt}")
-        _mem = "、".join(f"{m['name_zh']}({m['stance']})" for m in _fa_council.get("members", []))
-        st.caption(f"成员: {_mem}")
-    with st.expander("执行清单 + 完整叙述"):
-        for _i, _a in enumerate(_fa.get("actions", []), 1):
-            st.text(f"{_i}. {_a}")
-        st.write(_fa.get("digest", ""))
+            _nt = _sep.join(f"{class_label(c, lang)} {v:+.2f}" for c, v in
+                            sorted(_net.items(), key=lambda kv: -kv[1]) if abs(v) > 0.05)
+            st.caption(t("fa.net", lang, signals=_nt))
+        _mem = _sep.join(
+            f"{analyst_name_from_zh(m['name_zh'], lang)} "
+            f"({stance_label(m['stance'], lang)})"
+            for m in _fa_council.get("members", []))
+        st.caption(t("fa.members", lang, members=_mem))
+    with st.expander(t("fa.actions", lang)):
+        if lang == "en":
+            _name_en = {a.id: a.name_en for a in plan.assets}
+            _cls_of = {a.id: a.asset_class for a in plan.assets}
+            _top = sorted(_fa.get("final_asset_weights", {}).items(), key=lambda kv: -kv[1])[:5]
+            for _i, (_aid, _w) in enumerate(_top, 1):
+                _bb = _bm.get(_cls_of.get(_aid, ""), {}).get("base")
+                _where = f" (base: {_localized_base(_bb)})" if _bb else ""
+                st.text(f"{_i}. {_name_en.get(_aid, _aid)} — {_w:.1%}{_where}")
+            st.write("Research synthesis of quant allocation, class views, global regime and "
+                     "basing. Not investment advice; markets carry risk.")
+        else:
+            _actions = _fa.get("actions", [])
+            if lang == "zh-Hant":
+                _actions = [to_hant(x) for x in _actions]
+            for _i, _a in enumerate(_actions, 1):
+                st.text(f"{_i}. {_a}")
+            _digest = _fa.get("digest", "")
+            st.write(to_hant(_digest) if lang == "zh-Hant" else _digest)
 elif _fa and _fa.get("error"):
-    st.warning(f"最终建议暂不可用: {_fa['error']}")
+    st.warning(t("fa.error", lang, err=_fa["error"]))
 
 # ---- ⑤ 金融分析师智囊团 (约30选5, 方向匹配) ----
-st.subheader("⑤ 金融分析师智囊团 Analyst Council")
-st.caption("从约30位投资大师/流派(西蒙斯·巴菲特·达利欧·塔勒布·伍德…)中，按当前"
-           "策略/资产/局势/适当性等级选出方向最匹配的5位，各自给出观点。仅供参考。")
+st.subheader(t("council.title", lang))
+st.caption(t("council.intro", lang))
 _c_col1, _c_col2 = st.columns([1, 3])
 with _c_col1:
-    _gen_council = st.button("召集智囊团", key="gen_council")
+    _gen_council = st.button(t("council.generate", lang), key="gen_council")
 if _gen_council:
-    with st.spinner("匹配分析师并生成观点(含局势+大类观点)..."):
+    with st.spinner(t("council.spinner", lang)):
         try:
             from invest_agent.tools import AdvisorContext, build_tools  # noqa: E402
             _actx = AdvisorContext(provider_name=provider)
@@ -449,62 +557,100 @@ if _gen_council:
             st.session_state["atlas_council"] = {"error": str(_ce)}
 _cc = st.session_state.get("atlas_council")
 if _cc and not _cc.get("error"):
+    _sep = ", " if lang == "en" else "、"
     _dv = _cc.get("divergence") or {}
     _dv_metric = f"{_dv.get('score', 0):.2f}" if _dv else "—"
-    _dv_level = _dv.get("level", "—") if _dv else "—"
+    _dv_level = divergence_label(_dv.get("level", "—"), lang) if _dv else "—"
     _dc1, _dc2 = st.columns([3, 1])
     with _dc1:
-        st.success(f"共识研判: **{_cc['consensus']}** · 候选池 {_cc['n_analysts_total']} 位"
-                   + (f" · 异议: {'、'.join(_cc['dissent'])}" if _cc.get("dissent") else ""))
+        _dissent = _sep.join(analyst_name_from_zh(x, lang) for x in _cc.get("dissent", []))
+        st.success(t("council.consensus", lang,
+                     consensus=stance_label(_cc["consensus"], lang),
+                     n=_cc["n_analysts_total"],
+                     dissent=t("council.dissent", lang, names=_dissent) if _dissent else ""))
     with _dc2:
-        st.metric("分歧度", _dv_metric, _dv_level,
+        st.metric(t("council.divergence", lang), _dv_metric, _dv_level,
                   delta_color="inverse")
     if _dv.get("score", 0) >= 0.45:
-        st.warning("⚠ 智囊团分歧显著：建议降低主观观点权重，以量化基础配置与纪律为主。")
-    st.caption(_cc["summary"])
+        st.warning(t("council.warning", lang))
+    if lang != "en":
+        st.caption(to_hant(_cc["summary"]) if lang == "zh-Hant" else _cc["summary"])
+    else:
+        _members_en = _sep.join(analyst_name(v, lang) for v in _cc.get("council", []))
+        st.caption(f"Selected {len(_cc.get('council', []))} of {_cc['n_analysts_total']} "
+                   f"analysts by directional match: {_members_en}. Views are illustrative, "
+                   f"not investment advice.")
     for _v, _vote in zip(_cc["council"], _cc.get("votes", [])):
         with st.container():
             _voice = _vote.get("voice", 1.0)
-            _voice_txt = f"话语权 ×{_voice:.2f}" if abs(_voice - 1.0) > 0.01 else "话语权 ×1.00(未校准)"
-            st.markdown(f"**{_v['name_zh']} · {_v['name_en']}** — {_v['school']} "
-                        f"｜相关度 {_v['relevance']:.2f}｜{_voice_txt}｜{_v['stance']}")
-            st.markdown(f"&nbsp;&nbsp;🗣 {_v['advice']}")
-            st.markdown(f"&nbsp;&nbsp;📊 仓位倾向: `{_v['tilt_text']}` ｜ 原则: “{_v['signature']}”")
+            _voice_txt = t("council.voice", lang, v=_voice) if abs(_voice - 1.0) > 0.01 \
+                else t("council.voice_default", lang)
+            st.markdown(t("council.meta", lang,
+                          name=analyst_name(_v, lang),
+                          school=school_label(_v["school"], lang),
+                          rel=_v["relevance"], voice=_voice_txt,
+                          stance=stance_label(_v["stance"], lang)))
+            if lang == "en":
+                _focus = ", ".join(class_label(c, lang) for c in str(_v.get("focus", "")).split("、") if c)
+                _tilt_keys = ", ".join(class_label(c, lang) for c in _v.get("tilt", {}))
+                st.markdown(f"&nbsp;&nbsp;🗣 From a {school_label(_v['school'], lang)} lens, "
+                            f"current stance: {stance_label(_v['stance'], lang)}. "
+                            f"Focus: {_focus or '—'}.")
+                st.markdown(f"&nbsp;&nbsp;📊 Position tilt: `{_tilt_keys or '—'}`")
+            else:
+                _advice = to_hant(_v["advice"]) if lang == "zh-Hant" else _v["advice"]
+                _tilt = to_hant(_v["tilt_text"]) if lang == "zh-Hant" else _v["tilt_text"]
+                _sig = to_hant(_v["signature"]) if lang == "zh-Hant" else _v["signature"]
+                st.markdown(t("council.advice", lang, text=_advice))
+                st.markdown(t("council.tilt", lang, tilt=_tilt, signature=_sig))
     _cal = _cc.get("calibration") or {}
     if _cal.get("calibrated"):
-        _top = "、".join(f"{t['name_zh']}({t['multiplier']:.2f})" for t in _cal.get("top", [])[:3])
-        _bot = "、".join(f"{t['name_zh']}({t['multiplier']:.2f})" for t in _cal.get("bottom", [])[:3])
-        st.caption(f"📈 话语权校准(风格IC, {_cal.get('meta', {}).get('calibrated_at', '—')}): "
-                   f"最高 {_top} · 最低 {_bot}")
-    st.caption("_智囊团为不同投资流派视角的模拟观点，仅供多元参考，不构成投资建议。_")
+        _top = _sep.join(
+            f"{analyst_name_by_id(x['id'], lang)}({x['multiplier']:.2f})"
+            for x in _cal.get("top", [])[:3])
+        _bot = _sep.join(
+            f"{analyst_name_by_id(x['id'], lang)}({x['multiplier']:.2f})"
+            for x in _cal.get("bottom", [])[:3])
+        st.caption(t("council.calibration", lang,
+                     ts=_cal.get("meta", {}).get("calibrated_at", "—"),
+                     top=_top, bottom=_bot))
+    st.caption(t("council.disclaimer", lang))
 elif _cc and _cc.get("error"):
-    st.warning(f"智囊团暂不可用: {_cc['error']}")
+    st.warning(t("council.error", lang, err=_cc["error"]))
 
 if plan.menu:
-    with st.expander("策略菜单对比 Strategy menu (各自回测)"):
+    with st.expander(t("menu.title", lang)):
         _rows = []
         for r in plan.menu:
+            _srow = next((s for s in STRATEGY_MENU if s.id == r["id"]), None)
             _rows.append({
-                "策略": ("✅ " if r["id"] == _st.id else "") + r["name_zh"],
-                "目标": r["objective"], "调仓": r["cadence_label"],
-                "年化": f"{r['ann_return']:.1%}", "波动": f"{r['ann_vol']:.1%}",
-                "夏普": f"{r['sharpe']:.2f}", "DSR": f"{r.get('dsr', 0):.2f}",
-                "最大回撤": f"{r['max_drawdown']:.1%}",
+                t("menu.col_strategy", lang): ("✅ " if r["id"] == _st.id else "")
+                + (strategy_name(_srow, lang) if _srow else r["id"]),
+                t("menu.col_objective", lang): objective_label(r["objective"], lang),
+                t("menu.col_cadence", lang): cadence_label(r["cadence"], lang),
+                t("menu.col_return", lang): f"{r['ann_return']:.1%}",
+                t("menu.col_vol", lang): f"{r['ann_vol']:.1%}",
+                t("menu.col_sharpe", lang): f"{r['sharpe']:.2f}",
+                "DSR": f"{r.get('dsr', 0):.2f}",
+                t("menu.col_mdd", lang): f"{r['max_drawdown']:.1%}",
             })
         st.dataframe(_rows, hide_index=True, use_container_width=True)
 
-with st.expander("市场情报 Market Intel (最新财经要闻)"):
-    if st.button("拉取最新情报 Fetch latest"):
+with st.expander(t("intel.title", lang)):
+    if st.button(t("intel.fetch", lang)):
         from invest_agent.intel import fetch_market_intel  # noqa: E402
-        with st.spinner("抓取最新新闻/快讯..."):
+        with st.spinner(t("intel.spinner", lang)):
             _pack = fetch_market_intel(max_items=20)
         st.session_state["atlas_intel"] = _pack
     _pack = st.session_state.get("atlas_intel")
     if _pack:
-        st.caption(f"生成时间 {_pack['generated_at']} · 状态 {_pack['source_status']} · "
-                   f"话题: {', '.join(_pack['topics_covered'])}")
+        st.caption(t("intel.meta", lang, ts=_pack["generated_at"], status=_pack["source_status"],
+                     topics=", ".join(_pack["topics_covered"])))
+        if lang == "en":
+            st.caption(t("intel.source_language", lang))
         for it in _pack["items"]:
-            st.text(f"[{','.join(it['topics'][:2])}] {it['title']}")
+            _title = to_hant(it["title"]) if lang == "zh-Hant" else it["title"]
+            st.text(f"[{','.join(it['topics'][:2])}] {_title}")
 
 c1, c2 = st.columns(2)
 with c1:
@@ -517,20 +663,20 @@ with c3:
 with c4:
     st.image(res["charts"]["projection"])
 
-st.subheader("配置明细 Allocation")
-name_of = {a.id: a.name_zh for a in plan.assets}
+st.subheader(t("alloc.title", lang))
+name_of = {a.id: asset_name(a, lang) for a in plan.assets}
 st.dataframe(
     [
-        {"资产": name_of[k], "权重": f"{v:.2%}",
-         "预期年化": f"{plan.mu_ann[k]:.1%}", "年化波动": f"{plan.vol_ann[k]:.1%}"}
+        {t("alloc.asset", lang): name_of[k], t("alloc.weight", lang): f"{v:.2%}",
+         t("alloc.exp_return", lang): f"{plan.mu_ann[k]:.1%}",
+         t("alloc.vol", lang): f"{plan.vol_ann[k]:.1%}"}
         for k, v in sorted(plan.weights.items(), key=lambda kv: -kv[1])
     ],
     hide_index=True, use_container_width=True,
 )
 
-st.subheader("完整资产池与准入 Full Universe & Access")
-st.caption("权重为 0 不代表不存在：下表列出全部可投候选及其在当前画像下的准入上限。"
-           "加密货币需 C3 及以上，期货仅对富裕/高净值客群且满足门槛开放。")
+st.subheader(t("universe.title", lang))
+st.caption(t("universe.intro", lang))
 from invest_agent.config import client_segments  # noqa: E402
 from invest_agent.data.universe import build_universe  # noqa: E402
 from invest_agent.personas import accessible_classes  # noqa: E402
@@ -541,113 +687,131 @@ _pool_rows = []
 for a in build_universe():
     cap = _caps.get(a.asset_class, 0.0)
     if a.asset_class == "futures" and not _seg.get("allow_futures", False):
-        status = "不对该客群开放"
+        status = t("universe.no_segment", lang)
     elif a.asset_class == "futures" and cap <= 0:
-        status = "适当性不足"
+        status = t("universe.no_suitability", lang)
     elif cap <= 0:
-        status = "当前等级不可投"
+        status = t("universe.no_tier", lang)
     else:
-        status = f"上限 {cap:.0%}"
+        status = t("universe.cap", lang, cap=cap)
     wgt = plan.weights.get(a.id)
     _pool_rows.append({
-        "资产": f"{a.name_zh} ({a.name_en})",
-        "类别": a.asset_class,
-        "准入": status,
-        "当前权重": f"{wgt:.2%}" if wgt else "—",
+        t("universe.asset", lang): f"{asset_name(a, lang)}",
+        t("universe.class", lang): class_label(a.asset_class, lang),
+        t("universe.access", lang): status,
+        t("universe.current", lang): f"{wgt:.2%}" if wgt else "—",
     })
 st.dataframe(_pool_rows, hide_index=True, use_container_width=True)
 
-st.subheader("大类资产配置建议 Macro Allocation Advice")
-st.caption("结合真实动量、估值分位、新闻情绪与宏观研判的大类观点 + 权益内部风格/行业细分。"
-           "需与个人适当性结合，不构成投资建议。")
+st.subheader(t("macro.title", lang))
+st.caption(t("macro.intro", lang))
 try:
     from invest_agent.macro_advice import generate_macro_advice  # noqa: E402
-    with st.spinner("生成大类配置建议(动量+估值+新闻+宏观)..."):
+    with st.spinner(t("macro.spinner", lang)):
         _madv = generate_macro_advice(provider_name=provider, months=60)
     _stance_icon = {"超配": "🟢", "标配": "⚪", "低配": "🔴"}
     _mrows = []
     for a in _madv["advice"]:
+        _reasons = "; ".join(a["reasons"]) if lang != "en" else ""
+        if lang == "zh-Hant":
+            _reasons = to_hant(_reasons)
         _mrows.append({
-            "观点": _stance_icon.get(a["stance"], "") + " " + a["stance"],
-            "大类": a["name"],
-            "评分": f"{a['score']:+.2f}",
-            "依据": "; ".join(a["reasons"]),
+            t("macro.stance", lang): _stance_icon.get(a["stance"], "") + " "
+            + stance_label(a["stance"], lang),
+            t("macro.class", lang): class_label(a["class"], lang),
+            t("macro.score", lang): f"{a['score']:+.2f}",
+            t("macro.reasons", lang): _reasons or "—",
         })
     st.dataframe(_mrows, hide_index=True, use_container_width=True)
     _mc1, _mc2 = st.columns(2)
     with _mc1:
-        st.markdown(f"**行业/风格细分**: {_madv['sector_tilt']['style']}")
-        for _n in _madv["sector_tilt"]["notes"]:
-            st.caption(f"• {_n}")
+        if lang != "en":
+            _style = to_hant(_madv["sector_tilt"]["style"]) if lang == "zh-Hant" \
+                else _madv["sector_tilt"]["style"]
+            st.markdown(t("macro.style", lang, style=_style))
+            for _n in _madv["sector_tilt"]["notes"]:
+                st.caption(f"• {to_hant(_n) if lang == 'zh-Hant' else _n}")
     with _mc2:
         _ctx = _madv["macro_context"]
-        st.markdown("**宏观背景**")
-        st.caption(f"• 中国制造业: {_ctx.get('china_pmi', '—')}")
-        st.caption(f"• A股估值分位: {_ctx.get('equity_pe_percentile', '—')}%")
-        st.caption(f"• 全球局势: {_ctx.get('global_regime', '—')}")
-    with st.expander("综合研判叙述 Narrative"):
-        st.write(_madv["narrative"])
-except Exception as _me:  # noqa: E401
-    st.warning(f"大类配置建议暂不可用: {_me}")
+        st.markdown(t("macro.context", lang))
+        if lang != "en" and _ctx.get("china_pmi"):
+            st.caption(f"• {t('macro.pmi', lang, v=_ctx.get('china_pmi'))}")
+        if _ctx.get("equity_pe_percentile") is not None:
+            st.caption(f"• {t('macro.pe', lang, v=_ctx.get('equity_pe_percentile'))}")
+        st.caption(f"• {t('macro.regime', lang, v=regime_label(_ctx.get('global_regime', '—'), lang))}")
+    if lang != "en":
+        with st.expander(t("macro.narrative", lang)):
+            st.write(to_hant(_madv["narrative"]) if lang == "zh-Hant" else _madv["narrative"])
+except Exception as _me:  # noqa: BLE001
+    st.warning(t("macro.error", lang, err=_me))
 
-st.subheader("因子透镜筛选 Factor-Lens Screening")
-st.caption("收益代理: 动量(+)/短期反转(−)/低波动(−)/抗回撤(−)；"
-           "在线真因子(免费接口): 指数PE历史分位(−)/成交额流动性(+)/主力净流入(+)。"
-           "无数据的资产自动降权，不编造。")
+st.subheader(t("factor.title", lang))
+st.caption(t("factor.intro", lang))
 try:
     from invest_agent.factors import default_catalog, enrich_universe, screen_universe  # noqa: E402
     _prov = InvestAgent(provider_name=provider).ctx.get_provider()
     _uni = build_universe()
     _ids = [a.id for a in _uni]
+    _cn_to_en = {a.name_zh: a.name_en for a in _uni}
     _R = _prov.get_monthly_returns(_ids, 96)
-    with st.spinner("拉取在线因子数据(换手/资金流/PE分位, 有缓存)..."):
+    with st.spinner(t("factor.spinner", lang)):
         _enrich = enrich_universe(_uni)
     _screen = screen_universe(_R[_ids], _uni, default_catalog(), enrichment=_enrich)
     _rows = []
     for i, r in enumerate(_screen["ranked"]):
+        _aname = _cn_to_en.get(r["name_zh"], r["name_zh"]) if lang == "en" \
+            else pick(r["name_zh"], _cn_to_en.get(r["name_zh"], r["name_zh"]), lang)
         _rows.append({
-            "排名": i + 1, "资产": r["name_zh"], "类别": r["class"],
-            "因子分": f"{r['score']:+.2f}",
-            "动量": f"{r['momentum']:+.1%}",
-            "年化波动": f"{r['low_vol']:.1%}",
-            "PE分位(10y)": f"{r['pe_percentile']:.0f}%" if "pe_percentile" in r else "—",
-            "主力净流入": f"{r['money_flow']:+.2f}%" if "money_flow" in r else "—",
-            "在线因子数": r["n_live_factors"],
+            t("factor.rank", lang): i + 1, t("factor.asset", lang): _aname,
+            t("factor.class", lang): class_label(r["class"], lang),
+            t("factor.score", lang): f"{r['score']:+.2f}",
+            t("factor.momentum", lang): f"{r['momentum']:+.1%}",
+            t("factor.vol", lang): f"{r['low_vol']:.1%}",
+            t("factor.pe", lang): f"{r['pe_percentile']:.0f}%" if "pe_percentile" in r else "—",
+            t("factor.flow", lang): f"{r['money_flow']:+.2f}%" if "money_flow" in r else "—",
+            t("factor.n_live", lang): r["n_live_factors"],
         })
     st.dataframe(_rows, hide_index=True, use_container_width=True)
-    st.caption(f"在线真因子已启用: {'是' if _screen['live_data_used'] else '否(离线/接口不可用, 已回退收益代理)'}")
-    with st.expander("仍不可计算的因子族(需日频个股财务/分析师数据)"):
-        st.write("、".join(_screen["skipped_families"]) or "无")
+    st.caption(t("factor.live_yes" if _screen["live_data_used"] else "factor.live_no", lang))
+    if lang != "en":
+        with st.expander(t("factor.skipped", lang)):
+            _sk = "、".join(_screen["skipped_families"]) or t("common.none", lang)
+            st.write(to_hant(_sk) if lang == "zh-Hant" else _sk)
 except Exception as _e:  # noqa: BLE001
-    st.warning(f"因子筛选不可用: {_e}")
+    st.warning(t("factor.error", lang, err=_e))
 
-with st.expander("因子库 Factor Knowledge Base"):
+with st.expander(t("factor.kb", lang)):
     _cat = default_catalog()
     if _cat.factors:
-        st.caption(f"共 {len(_cat.factors)} 个因子 · {len(_cat.categories)} 个类别 · "
-                   f"{_cat.n_records} 条记录")
-        st.dataframe(_cat.category_summary()[:30], hide_index=True)
+        st.caption(t("factor.kb_stats", lang, n=len(_cat.factors),
+                     c=len(_cat.categories), r=_cat.n_records))
+        if lang != "en":
+            _cs = _cat.category_summary()[:30]
+            if lang == "zh-Hant":
+                _cs = [{"category": to_hant(x["category"]), "n_factors": x["n_factors"]}
+                       for x in _cs]
+            st.dataframe(_cs, hide_index=True)
     else:
-        st.info("因子库未加载（请在 config/agent.yaml 配置 factors.data_dir）")
+        st.info(t("factor.kb_empty", lang))
 
-with st.expander("因子自进化 Factor Self-Evolution (自主学习)", expanded=False):
+with st.expander(t("factor.evo", lang), expanded=False):
     from invest_agent.factors.factor_evolution import (  # noqa: E402
         hours_since_last_run, maybe_autolearn, read_state)
     from invest_agent.factors.factor_store import stats as _fstats  # noqa: E402
     _fs = _fstats()
     _st_state = read_state()
     _gap = hours_since_last_run()
-    st.caption(f"项目因子库: 共 {_fs['total']} 个因子 · 来源 {_fs['by_source']} · "
-               f"已测IC {_fs['with_ic']} 个")
-    st.caption(f"上次学习: {_st_state.get('last_run') or '从未'} · "
-               f"累计 {_st_state.get('cycles', 0)} 轮 · "
-               f"距今 {('%.1f 小时' % _gap) if _gap is not None else '—'}")
-    st.caption("自主学习: 后台守护进程定期学习(见 scripts/evolution_daemon.py)；"
-               "且每次打开 Atlas 若超过阈值未学习会自动后台补一轮。")
+    st.caption(t("factor.evo_stats", lang, n=_fs["total"], sources=_fs["by_source"],
+                 ic=_fs["with_ic"]))
+    _last = _st_state.get("last_run") or t("common.never", lang)
+    _gap_txt = t("common.hours", lang, h=_gap) if _gap is not None else "—"
+    st.caption(t("factor.evo_last", lang, last=_last,
+                 cycles=_st_state.get("cycles", 0), gap=_gap_txt))
+    st.caption(t("factor.evo_how", lang))
     _ac1, _ac2 = st.columns(2)
     with _ac1:
-        if st.button("立即学习一轮 (前台)", key="evolve_btn"):
-            with st.spinner("学习中: 研报因子采集 + 实证IC测量..."):
+        if st.button(t("factor.evo_once", lang), key="evolve_btn"):
+            with st.spinner(t("factor.evo_spinner", lang)):
                 try:
                     from invest_agent.factors.factor_evolution import run_cycle  # noqa: E402
                     st.session_state["atlas_evolve"] = run_cycle(provider_name=provider,
@@ -655,25 +819,29 @@ with st.expander("因子自进化 Factor Self-Evolution (自主学习)", expande
                 except Exception as _ee:  # noqa: BLE001
                     st.session_state["atlas_evolve"] = {"error": str(_ee)}
     with _ac2:
-        if st.button("触发后台学习", key="evolve_bg_btn"):
+        if st.button(t("factor.evo_bg", lang), key="evolve_bg_btn"):
             _tr = maybe_autolearn(threshold_hours=-1, provider_name=provider)
-            st.toast("已触发后台学习" if _tr.get("triggered") else "触发失败")
+            st.toast(t("factor.evo_bg_ok" if _tr.get("triggered") else "factor.evo_bg_fail", lang))
     _ev = st.session_state.get("atlas_evolve")
     if _ev:
         if _ev.get("error"):
-            st.warning(f"学习失败: {_ev['error']}")
+            st.warning(t("factor.evo_error", lang, err=_ev["error"]))
         else:
-            st.success(f"本轮: {_ev['factors_before']} → {_ev['factors_after']} 个因子 "
-                       f"(知识库 {_ev['knowledge_base_imported']}, "
-                       f"研报 {_ev['broker_report_factors']}, "
-                       f"PDF深解析 {_ev.get('pdf_factors_registered', 0)}, "
-                       f"在线 {_ev['collected_online']})")
+            st.success(t("factor.evo_done", lang,
+                         before=_ev["factors_before"], after=_ev["factors_after"],
+                         kb=_ev["knowledge_base_imported"],
+                         reports=_ev["broker_report_factors"],
+                         pdf=_ev.get("pdf_factors_registered", 0),
+                         online=_ev["collected_online"]))
             if _ev.get("learned_empirical"):
-                st.dataframe([{"因子": f["name"], "IC": f.get("ic")}
+                st.dataframe([{t("factor.evo_ic_factor", lang): f["name"], "IC": f.get("ic")}
                               for f in _ev["learned_empirical"]], hide_index=True)
-                st.caption("IC(信息系数)=因子值与未来收益的秩相关；|IC|越大预测力越强。")
+                st.caption(t("factor.ic_note", lang))
 
-with st.expander("完整报告 Full report"):
+with st.expander(t("report.title", lang)):
+    if lang == "en":
+        st.info(t("report.zh_only", lang))
+        st.stop()
     import base64 as _b64
     import os as _os
     import re as _re
@@ -701,4 +869,4 @@ with st.expander("完整报告 Full report"):
     else:
         _rep_src = res["report"]
     _report_text = _re.sub(r"!\[([^\]]*)\]\(([^)]+)\)", _embed, _rep_src)
-    st.markdown(_report_text)
+    st.markdown(to_hant(_report_text) if lang == "zh-Hant" else _report_text)
