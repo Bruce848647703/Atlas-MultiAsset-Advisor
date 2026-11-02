@@ -19,6 +19,9 @@ llm:
 
 agent:
   max_tool_steps: 8
+  max_tool_calls: 24           # per conversation; bounds runaway tool loops
+  max_tool_argument_chars: 16000
+  max_tool_result_chars: 12000 # oversized tool output is truncated, not fed raw
   language: "zh-CN"          # report language; charts stay en (font safety)
   disclaimer: >-
     本系统输出仅为基于量化模型的研究性参考，不构成任何投资建议。

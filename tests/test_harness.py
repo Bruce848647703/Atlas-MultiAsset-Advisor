@@ -1,6 +1,6 @@
 import json
 
-from invest_agent.harness import AgentHarness
+from invest_agent.harness import AgentHarness, Tool
 from invest_agent.tools import AdvisorContext, build_tools
 
 
@@ -82,3 +82,76 @@ def test_tool_results_are_json_serializable():
     out = tools["get_market_summary"].handler({"n_months": 36})
     json.dumps(out, ensure_ascii=False)
     assert out["provider"] == "synthetic"
+
+
+def _echo_tool(called, required=True):
+    return Tool(
+        "echo", "echo", {
+            "type": "object",
+            "properties": {"x": {"type": "string"}},
+            "required": ["x"] if required else [],
+        },
+        lambda args: called.append(args) or {"ok": True},
+    )
+
+
+def _run_one_call(tool, arguments, **harness_kw):
+    client = ScriptedClient([
+        {"content": "", "tool_calls": [_tool_call("echo", arguments, "call_a")]},
+        {"content": "recovered"},
+    ])
+    harness = AgentHarness(client, [tool], "sys", **harness_kw)
+    return harness.run("hi")
+
+
+def test_invalid_arguments_never_reach_the_handler():
+    called = []
+    res = _run_one_call(_echo_tool(called), {})
+    assert called == []
+    assert "missing required argument" in res.trace[0]["result"]["error"]
+    assert "recovered" in res.final_text
+
+
+def test_wrong_argument_type_is_rejected():
+    called = []
+    res = _run_one_call(_echo_tool(called), {"x": 123})
+    assert called == []
+    assert "must be string" in res.trace[0]["result"]["error"]
+
+
+def test_oversized_argument_is_rejected():
+    called = []
+    res = _run_one_call(_echo_tool(called), {"x": "a" * 5000},
+                        max_tool_argument_chars=1000)
+    assert called == []
+    assert "too long" in res.trace[0]["result"]["error"]
+
+
+def test_tool_call_budget_is_enforced():
+    client = ScriptedClient([
+        {"content": "", "tool_calls": [
+            _tool_call("echo", {"x": "1"}, "call_a"),
+            _tool_call("echo", {"x": "2"}, "call_b")]},
+        {"content": "should not be reached"},
+    ])
+    called = []
+    harness = AgentHarness(client, [_echo_tool(called)], "sys", max_tool_calls=1)
+    res = harness.run("hi")
+    assert len(called) == 1
+    assert "budget exhausted" in res.trace[1]["result"]["error"]
+    assert "上限" in res.final_text
+
+
+def test_oversized_tool_result_is_truncated():
+    tool = Tool("big", "big", {"type": "object", "properties": {}},
+                lambda args: {"blob": "x" * 5000})
+    client = ScriptedClient([
+        {"content": "", "tool_calls": [_tool_call("big", {}, "call_a")]},
+        {"content": "ok"},
+    ])
+    harness = AgentHarness(client, [tool], "sys", max_tool_result_chars=1000)
+    res = harness.run("hi")
+    tool_msg = next(m for m in res.history if m["role"] == "tool")
+    payload = json.loads(tool_msg["content"])
+    assert payload["_truncated"] is True
+    assert payload["original_chars"] > 5000

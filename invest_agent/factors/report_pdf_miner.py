@@ -20,6 +20,8 @@ import io
 import json
 import os
 import re
+
+from ..safety import sanitize_untrusted_text
 from typing import Dict, List, Optional
 
 _CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
@@ -230,6 +232,7 @@ def mine_report_pdfs(basket: Optional[List[str]] = None,
         prov = f"{row['title'][:40]}|{row['institution']}|{row['date']}"
         # register explicit factor names (highest value)
         for nm in found["names"][:5]:
+            nm = sanitize_untrusted_text(nm, 60)
             add_factor(f"pdf_{nm}", category="研报PDF", source="report_pdf",
                        name_cn=nm, formula="", direction=0,
                        rationale=f"来源: {prov}", overwrite=False)
@@ -240,7 +243,8 @@ def mine_report_pdfs(basket: Optional[List[str]] = None,
                 continue
             add_factor(f"pdfconcept_{theme}", category="研报PDF", source="report_pdf",
                        name_cn=f"研报概念-{theme}", formula="", direction=0,
-                       rationale=f"来源: {prov} | 论据: {evidence[0][:80]}",
+                       rationale=f"来源: {prov} | 论据: "
+                                 f"{sanitize_untrusted_text(evidence[0], 120)}",
                        overwrite=False)
             registered.append({"name": theme, "type": "concept", "report": row["title"][:40]})
     return {"reports_downloaded": downloads, "reports_with_factors": len(mined),

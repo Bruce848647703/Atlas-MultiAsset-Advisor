@@ -21,9 +21,10 @@ hold brokerage or exchange credentials.
 - **Secrets.** `DEEPSEEK_API_KEY` and `ATLAS_ACCESS_TOKEN` are read from the
   environment only. Do not commit them, and rotate any key that has been
   pasted into a repo, log, or screenshot.
-- **Untrusted input.** LLM tool arguments and free-text investor input are
-  parsed defensively today, but treat any new tool that writes files or makes
-  network requests as an attack surface.
+- **Untrusted input.** LLM tool arguments are schema-validated and budgeted;
+  external news/PDF text is sanitised and marked untrusted before it reaches the
+  model. Treat any new tool that writes files or makes network requests as an
+  attack surface, and keep the "data, not instructions" rule in the system prompt.
 
 ## Supported versions
 

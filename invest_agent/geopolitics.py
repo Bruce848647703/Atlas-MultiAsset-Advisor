@@ -14,6 +14,8 @@ import os
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
+from .safety import sanitize_news_pack, sanitize_untrusted_text
+
 _CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "data_cache")
 _TTL_H = 3.0
 
@@ -59,7 +61,7 @@ def fetch_global_news(max_items: int = 40, use_cache: bool = True) -> Dict:
     if use_cache:
         c = _fresh(path)
         if c:
-            return c
+            return sanitize_news_pack(c, max_items=max_items)
     items: List[Dict] = []
     sources_ok = []
 
@@ -113,8 +115,10 @@ def fetch_global_news(max_items: int = 40, use_cache: bool = True) -> Dict:
         if it["title"] not in seen:
             seen.add(it["title"])
             uniq.append(it)
-    pack = {"generated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
-            "sources_ok": sources_ok, "items": uniq[:max_items]}
+    pack = sanitize_news_pack(
+        {"generated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+         "sources_ok": sources_ok, "items": uniq},
+        max_items=max_items)
     if uniq:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(pack, f, ensure_ascii=False)
@@ -153,7 +157,7 @@ def assess_global_situation(news_pack: Optional[Dict] = None,
     else:
         regime = "中性/观望"
 
-    watch = [it["title"] for it in items if it["topics"]][:5]
+    watch = [sanitize_untrusted_text(it["title"], 120) for it in items if it["topics"]][:5]
     return {
         "generated_at": news_pack.get("generated_at"),
         "sources_ok": news_pack.get("sources_ok", []),
@@ -164,6 +168,7 @@ def assess_global_situation(news_pack: Optional[Dict] = None,
         "risk_off_hits": risk_off,
         "themes": [{"theme": t, "count": c} for t, c in themes],
         "watch_items": watch,
+        "untrusted": True,
     }
 
 
@@ -172,7 +177,7 @@ def situation_digest(assessment: Dict, max_watch: int = 4) -> str:
     lines = [
         f"[全球政经局势 {assessment.get('generated_at','')}] "
         f"研判: {assessment['regime']} (风险偏好 {assessment['risk_appetite']:+.2f})",
-        "主导议题: " + "、".join(t["theme"] for t in assessment["themes"]) or "无",
+        "主导议题: " + ("、".join(t["theme"] for t in assessment["themes"]) or "无"),
     ]
     if assessment["watch_items"]:
         lines.append("关注事件:")
