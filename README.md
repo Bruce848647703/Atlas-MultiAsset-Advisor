@@ -214,6 +214,11 @@ own, no manual trigger needed**:
 - systemd: `deploy/atlas-evolution.service`; cron also works.
 State logged in `data/evolution_state.json`; visible in the "Factor Self-Evolution" panel.
 
+**Concurrency-safe store**: dashboard sessions and daemon cycles can write at
+the same time. Writers take an advisory file lock (`data/factor_store.json.lock`)
+and replace the JSON atomically (temp file + rename); a corrupt store is
+quarantined instead of being silently overwritten.
+
 ### Factor Library Fusion (1000+ quant factors) ★
 
 `invest_agent/factors/` fuses the external factor library (`signal-name/data/json`:
@@ -261,7 +266,7 @@ data; the comparison table appears in the page/report.
 pip install -r requirements.txt          # numpy/pandas/scipy/matplotlib/openai/pyyaml/akshare
 
 make demo        # offline demo: mass / affluent / HNW → examples/demo_outputs/
-make test        # unit + integration tests (135)
+make test        # unit + integration tests (140)
 make eval        # compliance gate (weight legality / caps / disclaimer / segment access)
 make sft         # generate 400 SFT conversations → training/sft_data/train.jsonl
 
@@ -356,7 +361,7 @@ scripts/run_demo.py         dashboard/app.py (streamlit)
 training/         # README / generate_sft_data.py / build_real_dataset.py /
                   # eval/(compliance + requirement benchmark) / finetune/
 examples/factor_library_sample/  # factor-library sample (full lib: ATLAS_FACTOR_DIR)
-tests/            # 135 tests (offline, synthetic provider)
+tests/            # 140 tests (offline, synthetic provider)
 .streamlit/config.toml + dashboard/style.py  # Jane Street-style light theme
 .github/workflows/ci.yml  # GitHub Actions: tests (3.10/3.12/3.13) + compliance gates
 .gitlab-ci.yml + DEMO.md  # optional GitLab mirror CI & live-demo script

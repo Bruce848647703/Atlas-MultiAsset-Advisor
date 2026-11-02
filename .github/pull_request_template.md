@@ -8,7 +8,7 @@
 
 ## Checklist
 
-- [ ] `make test` passes (135+ tests)
+- [ ] `make test` passes (140+ tests)
 - [ ] `make eval` passes (compliance + requirement gates)
 - [ ] No secrets, personal paths, or generated `data/` files added
 - [ ] Docs / config examples updated if behaviour changed
