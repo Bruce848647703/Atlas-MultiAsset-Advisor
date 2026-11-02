@@ -65,6 +65,43 @@ jobs:
           path: report.xml
           if-no-files-found: ignore
 
+  docker:
+    name: docker image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Validate compose file
+        run: ATLAS_ACCESS_TOKEN=ci docker compose config -q
+
+      - name: Build image
+        run: docker build -t atlas:ci .
+
+      - name: Refuse to start without an access token
+        run: |
+          if docker run --rm atlas:ci; then
+            echo "::error::container started without ATLAS_ACCESS_TOKEN"
+            exit 1
+          fi
+
+      - name: Smoke test health endpoint
+        run: |
+          docker run -d --name atlas-ci -e ATLAS_ACCESS_TOKEN=ci-token \
+            -p 127.0.0.1:8501:8501 atlas:ci
+          ok=0
+          for _ in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:8501/_stcore/health; then ok=1; break; fi
+            sleep 2
+          done
+          docker logs atlas-ci || true
+          test "$ok" = "1"
+
+      - name: Stop container
+        if: always()
+        run: docker rm -f atlas-ci || true
+
   compliance:
     name: compliance gates
     runs-on: ubuntu-latest

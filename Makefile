@@ -1,4 +1,4 @@
-.PHONY: demo test lint eval sft chat dashboard dashboard-host evolve evolve-daemon evolve-daemon-stop
+.PHONY: demo test lint eval sft chat dashboard dashboard-host docker-build docker-run evolve evolve-daemon evolve-daemon-stop
 TOKEN ?=
 
 demo:            ## offline tri-strata demo -> examples/demo_outputs/
@@ -26,6 +26,14 @@ dashboard-host:  ## streamlit UI on all interfaces (requires TOKEN=<secret>)
 	@test -n "$(TOKEN)" || { echo "error: TOKEN is required, e.g. make dashboard-host TOKEN='s3cret'"; exit 1; }
 	ATLAS_ACCESS_TOKEN='$(TOKEN)' streamlit run dashboard/app.py \
 		--server.address 0.0.0.0 --server.port 8501 --server.headless true
+
+docker-build:    ## build the non-root runtime image
+	docker build -t atlas-multiasset-advisor .
+
+docker-run:      ## run the image (requires TOKEN=<secret>)
+	@test -n "$(TOKEN)" || { echo "error: TOKEN is required, e.g. make docker-run TOKEN='s3cret'"; exit 1; }
+	docker run --rm -p 127.0.0.1:8501:8501 \
+		-e ATLAS_ACCESS_TOKEN='$(TOKEN)' atlas-multiasset-advisor
 
 evolve:          ## one factor-learning cycle (foreground)
 	python3 scripts/evolution_daemon.py --once

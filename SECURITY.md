@@ -18,6 +18,9 @@ hold brokerage or exchange credentials.
   default placeholder token.
 - **Public exposure.** Bind to `127.0.0.1` unless you have a proxy with TLS,
   rate limiting, and auth. Keep XSRF protection enabled.
+- **Containers.** The image runs as non-root and refuses to start without
+  `ATLAS_ACCESS_TOKEN`; compose binds to localhost by default. Do not set
+  `ATLAS_ALLOW_INSECURE=1` on a reachable host.
 - **Secrets.** `DEEPSEEK_API_KEY` and `ATLAS_ACCESS_TOKEN` are read from the
   environment only. Do not commit them, and rotate any key that has been
   pasted into a repo, log, or screenshot.

@@ -1,0 +1,26 @@
+services:
+  atlas:
+    build: .
+    image: atlas-multiasset-advisor:latest
+    # Bind to localhost by default. Put nginx/Caddy in front for LAN/public
+    # access, or change to "8501:8501" only on a trusted network.
+    ports:
+      - "127.0.0.1:8501:8501"
+    environment:
+      # Required: compose refuses to start if it is unset.
+      ATLAS_ACCESS_TOKEN: ${ATLAS_ACCESS_TOKEN:?set ATLAS_ACCESS_TOKEN in your shell or .env}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      ATLAS_FACTOR_DIR: ${ATLAS_FACTOR_DIR:-}
+      TZ: Asia/Shanghai
+    volumes:
+      - atlas-data:/app/data
+      - atlas-cache:/app/data_cache
+      - atlas-outputs:/app/examples/demo_outputs
+    restart: unless-stopped
+    # Image-level HEALTHCHECK applies; keep the default stop grace period short.
+    stop_grace_period: 20s
+
+volumes:
+  atlas-data:
+  atlas-cache:
+  atlas-outputs:
