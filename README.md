@@ -1,5 +1,9 @@
 # Atlas · Multi-Asset Investment Advisor Agent
 
+[![CI](https://github.com/Bruce848647703/Atlas-MultiAsset-Advisor/actions/workflows/ci.yml/badge.svg)](https://github.com/Bruce848647703/Atlas-MultiAsset-Advisor/actions/workflows/ci.yml)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache--2.0-green.svg)](LICENSE)
+
 > A DeepSeek tool-calling agent for personal investing across **equities/funds,
 > bonds, gold, crypto, and futures**. It profiles investor suitability (C1–C5)
 > via **questionnaire + conversational inference**, allocates under **suitability
@@ -55,7 +59,7 @@ optimizer level, double-checked at the report level.
 
 Key principle: **the quant core is fully deterministic** (plans work with no LLM —
 easy to unit-test and generate training data). **The LLM is the conversational
-interface**, driving the core through **18 tools**:
+interface**, driving the core through **19 tools**:
 
 | Tool | Purpose |
 |---|---|
@@ -257,12 +261,12 @@ data; the comparison table appears in the page/report.
 pip install -r requirements.txt          # numpy/pandas/scipy/matplotlib/openai/pyyaml/akshare
 
 make demo        # offline demo: mass / affluent / HNW → examples/demo_outputs/
-make test        # unit + integration tests (108)
+make test        # unit + integration tests (135)
 make eval        # compliance gate (weight legality / caps / disclaimer / segment access)
 make sft         # generate 400 SFT conversations → training/sft_data/train.jsonl
 
 # Interactive mode (needs DeepSeek key; else falls back to survey + offline pipeline)
-export DEEPSEEK_API_KEY=***
+export DEEPSEEK_API_KEY='<your-key>'
 make chat
 ```
 
@@ -345,16 +349,18 @@ invest_agent/
   portfolio/      # metrics / optimizer(MV+maxSharpe+minVol+riskParity) /
                   #   backtest(walk-forward) / tactical(momentum+trend gate)
   data/           # base / synthetic / akshare / universe (26 assets)
-  tools/          # 18 tools exposed to the LLM
+  tools/          # 19 tools exposed to the LLM
   charts.py, report.py, cli.py
 config/           # assets.yaml, risk_profiles.yaml, agent.yaml
 scripts/run_demo.py         dashboard/app.py (streamlit)
 training/         # README / generate_sft_data.py / build_real_dataset.py /
                   # eval/(compliance + requirement benchmark) / finetune/
-examples/factor_library_sample/  # factor-library sample (full lib: factors.data_dir)
-tests/            # 132 tests
+examples/factor_library_sample/  # factor-library sample (full lib: ATLAS_FACTOR_DIR)
+tests/            # 135 tests (offline, synthetic provider)
 .streamlit/config.toml + dashboard/style.py  # Jane Street-style light theme
-.gitlab-ci.yml + DEMO.md   # GitLab CI (tests+gates) & live-demo script
+.github/workflows/ci.yml  # GitHub Actions: tests (3.10/3.12/3.13) + compliance gates
+.gitlab-ci.yml + DEMO.md  # optional GitLab mirror CI & live-demo script
+CONTRIBUTING.md / SECURITY.md  # dev workflow & deployment security notes
 ```
 
 ## 6.5 Front-End Style (Jane Street)
@@ -374,8 +380,8 @@ hexagon motifs.
 LAN access (simplest):
 
 ```bash
-pip install streamlit "numpy<1.23"     # note: pin numpy<1.23 (old scipy incompatible with numpy2)
-make dashboard-host                     # 0.0.0.0:8501, with token gate
+pip install streamlit
+make dashboard-host TOKEN='choose-a-long-random-secret'   # 0.0.0.0:8501, token-gated
 # open  http://<server-ip>:8501
 ```
 
@@ -413,7 +419,17 @@ Security checklist: ① enable `ATLAS_ACCESS_TOKEN` or nginx auth (Streamlit has
 ② expose only necessary ports; ③ never attach real trading credentials in a public
 deployment — this project is read-only market data, keep it that way.
 
-## 8. Roadmap
+## 8. Contributing & Security
+
+- Development workflow, design rules, and PR checklist: [`CONTRIBUTING.md`](CONTRIBUTING.md)
+- Deployment hardening and vulnerability reporting: [`SECURITY.md`](SECURITY.md)
+- CI: every push/PR runs the full offline test suite on Python 3.10/3.12/3.13 plus
+  the compliance gates (`.github/workflows/ci.yml`); a GitLab mirror can keep using
+  `.gitlab-ci.yml`.
+- Machine-specific paths stay out of the repo: set `ATLAS_FACTOR_DIR` for the external
+  factor library, `DEEPSEEK_API_KEY` for the LLM, and `ATLAS_ACCESS_TOKEN` for the UI.
+
+## 9. Roadmap
 
 - [ ] Real crypto/futures data sources (ccxt / CTP quotes)
 - [ ] Black-Litterman view injection (LLM report reading → view vector)

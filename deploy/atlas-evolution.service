@@ -6,7 +6,8 @@
 #   sudo systemctl enable --now atlas-evolution
 #   sudo systemctl status atlas-evolution
 #
-# Edit User/WorkingDirectory/Environment to match your setup.
+# This is a template: replace <user> and the project path before installing.
+# Tip: `%h` expands to that user's home directory in systemd units.
 
 [Unit]
 Description=Atlas factor self-evolution daemon (autonomous learning)
@@ -15,10 +16,10 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=zhuoming.wang
-WorkingDirectory=/home/zhuoming.wang/invest-agent
+User=<user>
+WorkingDirectory=%h/Atlas-MultiAsset-Advisor
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/home/zhuoming.wang/anaconda3/bin/python scripts/evolution_daemon.py --interval-hours 6
+ExecStart=/usr/bin/env python3 scripts/evolution_daemon.py --interval-hours 6
 Restart=on-failure
 RestartSec=60
 

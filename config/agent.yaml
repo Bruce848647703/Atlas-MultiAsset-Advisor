@@ -31,9 +31,10 @@ backtest:
   years: 8
 
 # Factor knowledge base (JSON library extracted from research documents).
-# Set data_dir to "" to disable; the advisor degrades gracefully.
+# Empty disables the external library; the advisor degrades gracefully.
+# Override without editing this file: export ATLAS_FACTOR_DIR=/path/to/data/json
 factors:
-  data_dir: "/home/zhuoming.wang/signal-name/data/json"
+  data_dir: ""
   screen_weight: 0.35        # blend of factor screen vs expected return in
                              # satellite allocation preference
 

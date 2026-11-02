@@ -70,7 +70,8 @@ class LLMClient:
                 raise LLMUnavailable("openai package not installed") from e
             if not self.cfg.api_key and self.cfg.provider == "api":
                 raise LLMUnavailable(
-                    "DEEPSEEK_API_KEY not set; run `export DEEPSEEK_API_KEY=*** or use provider=local"
+                    "DEEPSEEK_API_KEY not set; run `export DEEPSEEK_API_KEY=<key>` "
+                    "or use provider=local"
                 )
             self._client = OpenAI(api_key=self.cfg.api_key or "EMPTY", base_url=self.cfg.api_base)
         return self._client

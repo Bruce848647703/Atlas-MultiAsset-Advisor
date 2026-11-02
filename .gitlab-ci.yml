@@ -1,15 +1,15 @@
 # GitLab CI — runs the quant-core test suite + compliance/requirement gates
 # on every push. Serves as a live quality signal during demos.
 #
-# Uses python:3.9-slim with numpy pinned <1.23 (matches the scipy 1.7 env this
-# project was built against). Network-dependent features degrade gracefully,
-# so tests run fully offline on the synthetic provider.
+# Mirrors the GitHub Actions pipeline for users who keep a GitLab remote.
+# Network-dependent features degrade gracefully, so tests run fully offline on
+# the synthetic provider.
 
 stages:
   - test
 
 default:
-  image: python:3.9-slim
+  image: python:3.12-slim
 
 variables:
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
@@ -18,8 +18,8 @@ variables:
 .install: &install
   before_script:
     - apt-get update -qq && apt-get install -y -qq git >/dev/null
-    - pip install --quiet "numpy<1.23" "pandas>=1.4" "scipy>=1.7" "matplotlib>=3.5"
-        "PyYAML>=5.4" "pytest>=7.0" "jinja2>=3.1.2" "requests"
+    - pip install --quiet "numpy>=1.23" "pandas>=1.4" "scipy>=1.10" "matplotlib>=3.5"
+        "PyYAML>=5.4" "requests>=2.28" "pytest>=7.0" "jinja2>=3.1.2"
 
 unit-tests:
   <<: *install
