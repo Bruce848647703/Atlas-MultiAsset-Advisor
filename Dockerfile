@@ -7,7 +7,7 @@
 # The image runs as a non-root user and refuses to start without an access
 # token unless ATLAS_ALLOW_INSECURE=1 is set explicitly.
 
-FROM python:3.12-slim-bookworm
+FROM python:3.13-slim-bookworm
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
