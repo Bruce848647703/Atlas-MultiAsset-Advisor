@@ -34,6 +34,8 @@ def get_provider(name: str = "synthetic", **kwargs) -> DataProvider:
         # lazy import of optional providers (registers AkshareProvider + MergedProvider)
         if name in ("akshare", "merged"):
             from . import akshare_provider  # noqa: F401
+        elif name == "kairos":
+            from . import kairos_provider  # noqa: F401
     if name not in _REGISTRY:
         raise KeyError(f"unknown provider '{name}'; available: {sorted(_REGISTRY)}")
     return _REGISTRY[name](**kwargs)

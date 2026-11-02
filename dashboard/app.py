@@ -31,6 +31,7 @@ from i18n import (  # noqa: E402
     strategy_philosophy, t, theme_label, tier_label, to_hant,
 )
 from invest_agent.agent import InvestAgent  # noqa: E402
+from invest_agent.integrations import kairos as kairos_bridge  # noqa: E402
 from invest_agent.risk_profiler import QUESTIONS  # noqa: E402
 from invest_agent.strategy import STRATEGY_MENU  # noqa: E402
 
@@ -317,9 +318,12 @@ with st.sidebar:
     monthly_contrib = st.number_input(
         t("side.monthly", lang), min_value=0, value=3000, step=500,
         disabled=not use_contrib)
+    _provider_options = ["synthetic", "merged"]
+    if kairos_bridge.etf_dir() is not None:
+        _provider_options.append("kairos")
     provider = st.radio(
         t("side.provider", lang),
-        ["synthetic", "merged"],
+        _provider_options,
         help=t("side.provider_help", lang),
     )
     strategy_choice = st.selectbox(
@@ -422,6 +426,19 @@ k1.metric(t("res.exp_return", lang), f"{plan.expected['ann_return']:.1%}")
 k2.metric(t("res.vol", lang), f"{plan.expected['ann_vol']:.1%}")
 k3.metric(t("res.sharpe", lang), f"{plan.expected['sharpe_hint']:.2f}")
 k4.metric(t("res.mdd", lang), f"{plan.backtest['max_drawdown']:.1%}")
+
+if plan.kairos_risk:
+    _kr = plan.kairos_risk
+    st.markdown(f"**{t('kairos.risk', lang)}**")
+    _kc1, _kc2, _kc3, _kc4 = st.columns(4)
+    _kc1.metric(t("kairos.var", lang),
+                f"{_kr.get('var_95', 0):.2%} / {_kr.get('var_99', 0):.2%}")
+    _kc2.metric(t("kairos.es", lang),
+                f"{_kr.get('es_95', 0):.2%} / {_kr.get('es_99', 0):.2%}")
+    _kc3.metric(t("kairos.dr", lang), f"{_kr.get('diversification_ratio', 0):.2f}")
+    _kc4.metric(t("kairos.effn", lang), f"{_kr.get('effective_n', 0):.2f}")
+    st.caption(t("kairos.source", lang, src=_kr.get("source", "kairos-risk"),
+                 n=_kr.get("observations", 0)))
 
 _st = plan.strategy
 st.success(t("res.selected", lang, name=strategy_name(_st, lang),
@@ -845,6 +862,62 @@ with st.expander(t("factor.evo", lang), expanded=False):
                 st.dataframe([{t("factor.evo_ic_factor", lang): f["name"], "IC": f.get("ic")}
                               for f in _ev["learned_empirical"]], hide_index=True)
                 st.caption(t("factor.ic_note", lang))
+
+with st.expander(t("kairos.title", lang)):
+    st.caption(t("kairos.intro", lang))
+    _ks = kairos_bridge.context(plan)
+    if not _ks.get("root"):
+        st.info(t("kairos.not_found", lang))
+    else:
+        st.caption(f"{t('kairos.root', lang)}: `{_ks['root']}`")
+        _pkgs = {k: v for k, v in (_ks.get("packages") or {}).items() if v}
+        if _pkgs:
+            st.markdown(f"**{t('kairos.packages', lang)}**: " + ", ".join(
+                f"`{k}` {v}" for k, v in sorted(_pkgs.items())))
+        if _ks.get("etf_count"):
+            st.caption(t("kairos.data_line", lang, n=_ks["etf_count"],
+                         dir=_ks.get("etf_dir") or "—"))
+            st.caption(t("kairos.mapped_line", lang, n=_ks.get("n_mapped_assets", 0),
+                         ids=", ".join(_ks.get("mapped_assets") or [])))
+        _res = _ks.get("research") or {}
+        if _res:
+            _champs = _res.get("champions") or []
+            if _champs:
+                st.markdown(f"**{t('kairos.champions', lang)}**")
+                _crow = [{
+                    t("kairos.col_strategy", lang): r.get("strategy", ""),
+                    "channel": r.get("channel", ""),
+                    "Sharpe": r.get("real_sharpe", ""),
+                    t("kairos.col_score", lang): r.get("robustness_score", ""),
+                    t("kairos.col_rank", lang): r.get("rank", ""),
+                } for r in _champs[:5]]
+                st.dataframe(_crow, hide_index=True, use_container_width=True)
+            _find = _res.get("findings") or []
+            if _find:
+                if lang == "en":
+                    st.caption(f"{len(_find)} key findings are available in the Chinese "
+                               f"kairos-research report (not machine-translated offline).")
+                else:
+                    st.markdown(f"**{t('kairos.findings', lang)}**")
+                    _frow = []
+                    for r in _find[:4]:
+                        _frow.append({
+                            t("kairos.col_metric", lang): pick(r.get("指标", ""), "", lang),
+                            t("kairos.col_value", lang): pick(str(r.get("值", "")), "", lang),
+                            t("kairos.col_unit", lang): pick(r.get("单位", ""), "", lang),
+                            t("kairos.col_source", lang): pick(r.get("来源仓库", ""), "", lang),
+                        })
+                    st.dataframe(_frow, hide_index=True, use_container_width=True)
+        if plan.kairos_risk:
+            _crisk = plan.kairos_risk.get("class_risk") or {}
+            if _crisk:
+                st.markdown(f"**{t('kairos.class_risk', lang)}**")
+                st.dataframe(
+                    [{t("fa.class", lang): class_label(c, lang),
+                      t("fa.weight", lang): f"{v:.1%}"}
+                     for c, v in sorted(_crisk.items(), key=lambda kv: -kv[1])],
+                    hide_index=True, use_container_width=True,
+                )
 
 with st.expander(t("report.title", lang)):
     if lang == "en":

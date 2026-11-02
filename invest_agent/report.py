@@ -166,6 +166,22 @@ def build_report(plan: Plan, chart_paths: Optional[Dict[str, str]] = None,
     L.append("## 2. 历史回测 Backtest（样本外走查·无未来函数，按策略调仓频率）\n")
     L.append(metrics_table(plan) + "\n")
 
+    if plan.kairos_risk:
+        k = plan.kairos_risk
+        L.append("### Kairos 风险叠加 Risk Overlay\n")
+        L.append("| 指标 | 数值 |\n|---|---|")
+        L.append(f"| 历史 VaR 95% / 99% | {_fmt_pct(k.get('var_95', 0), 2)} / "
+                 f"{_fmt_pct(k.get('var_99', 0), 2)} |")
+        L.append(f"| 期望损失 ES 95% / 99% | {_fmt_pct(k.get('es_95', 0), 2)} / "
+                 f"{_fmt_pct(k.get('es_99', 0), 2)} |")
+        L.append(f"| 分散化比率 / 有效资产数 | {k.get('diversification_ratio', 0):.2f} / "
+                 f"{k.get('effective_n', 0):.2f} |")
+        if k.get("class_risk"):
+            L.append("| 风险贡献（按类别） | " + "；".join(
+                f"{c} {v:.0%}" for c, v in sorted(k["class_risk"].items(),
+                                                 key=lambda kv: -kv[1])) + " |")
+        L.append(f"\n_来源: {k.get('source', 'kairos-risk')}，基于 {k.get('observations', 0)} 个月度观测。_\n")
+
     L.append("## 3. 目标投射 Goal Projection\n")
     last = plan.projection[-1] if plan.projection else None
     if last:
