@@ -21,7 +21,6 @@ from typing import Dict, List, Optional, Sequence
 
 import numpy as np
 
-from .portfolio.metrics import performance_metrics
 from .portfolio.optimizer import (
     optimize_max_sharpe, optimize_mean_variance, optimize_min_vol, risk_parity,
 )
@@ -355,6 +354,9 @@ def evaluate_strategy(
     walk_forward: bool = True,
     prior_monthly: np.ndarray = None,
     kappa: Optional[float] = None,
+    slippage: float = 0.0,
+    sell_tax: float = 0.0,
+    rebalance_band: float = 0.0,
 ):
     """Backtest a strategy at its own cadence.
 
@@ -372,13 +374,16 @@ def evaluate_strategy(
                                       prior_monthly, suitability_caps, kappa=kappa)
         bt = run_walkforward_backtest(monthly_returns, builder,
                                       rebalance_every=strategy.rebalance_months,
-                                      fee=fee, warmup=36)
+                                      fee=fee, warmup=36,
+                                      slippage=slippage, sell_tax=sell_tax,
+                                      rebalance_band=rebalance_band)
     else:
         w = build_strategy_weights(strategy, mu, cov, asset_classes, suitability_caps,
                                    assets=assets)
         bt = run_backtest(monthly_returns, w, fee=fee,
-                          rebalance_every=strategy.rebalance_months)
-    m = performance_metrics(bt.portfolio_returns.values)
-    metrics = dict(m)
+                          rebalance_every=strategy.rebalance_months,
+                          slippage=slippage, sell_tax=sell_tax,
+                          rebalance_band=rebalance_band)
+    metrics = dict(bt.metrics)
     metrics["turnover_annual"] = float(bt.turnover_series.sum()) / max(len(monthly_returns) / 12.0, 1e-9)
     return metrics, bt.portfolio_returns

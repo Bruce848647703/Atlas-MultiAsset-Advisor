@@ -256,9 +256,12 @@ Rather than cramming 26 assets into one portfolio, six philosophy-driven strateg
 | Aggressive Frontier | Amplify high-growth elasticity | mean_variance | high | C4-C5 |
 | Crypto Barbell | Ultra-safe + high-elasticity extremes | mean_variance | high | C5 |
 
-Profile→strategy auto-selection: `score = Sharpe − 1.5×vol-overrun − 1.2×return-shortfall`
-(text signals add tier-gated boosts). The menu is backtested per-strategy on the same
-data; the comparison table appears in the page/report.
+Profile→strategy auto-selection: `score = Sharpe − 1.5×vol-overrun − 1.2×return-shortfall
++ 0.8×(DSR − 0.5)` (text signals add tier-gated boosts). **DSR** is the Deflated
+Sharpe Ratio — the probability that the strategy's edge survives deflation for the
+number of trials (menu size) plus skew/kurtosis, so the best raw Sharpe does not
+automatically win. The menu is backtested per-strategy on the same data; Sharpe,
+DSR, drawdown and turnover appear in the page/report.
 
 ## 3. Quickstart
 
@@ -267,7 +270,7 @@ pip install -r requirements.txt          # numpy/pandas/scipy/matplotlib/openai/
 
 make demo        # offline demo: mass / affluent / HNW → examples/demo_outputs/
 make lint        # ruff static checks (pip install -r requirements-dev.txt)
-make test        # unit + integration tests (140)
+make test        # unit + integration tests (148)
 make eval        # compliance gate (weight legality / caps / disclaimer / segment access)
 make sft         # generate 400 SFT conversations → training/sft_data/train.jsonl
 
@@ -299,8 +302,11 @@ Streamlit dashboard (optional): `pip install streamlit jinja2 && make dashboard`
   discipline), no shorting. Falls back to risk parity on failure.
 - **Strategy selection**: each menu strategy backtested at its own cadence; matched to
   the profile by `Sharpe − vol-overrun − return-shortfall`; overridable manually.
-- **Backtest**: per-strategy rebalance (monthly/quarterly/annual), turnover × one-way
-  fee; metrics = ann. return / vol / Sharpe / max drawdown / Calmar / turnover.
+- **Backtest**: per-strategy rebalance (monthly/quarterly/annual) with realistic
+  frictions — base fee + 2bps slippage on turnover, optional sell tax (default 0:
+  the bundled universe is ETF-based and CN ETFs are stamp-duty exempt), and a 2%
+  **no-trade band** that skips meaningless small rebalances. Metrics = ann. return /
+  vol / Sharpe / max drawdown / Calmar / turnover / annual cost drag.
 - **Intel**: `intel.py` pulls latest financial flashes, topic-tags them, caches 6h.
 - **Data**: `SyntheticProvider` (fixed seed, bear/boom/crypto-crash regimes, offline
   reproducible); `AkshareProvider` + `MergedProvider` (real CN/overseas ETFs, funds,
@@ -362,7 +368,7 @@ scripts/run_demo.py         dashboard/app.py (streamlit)
 training/         # README / generate_sft_data.py / build_real_dataset.py /
                   # eval/(compliance + requirement benchmark) / finetune/
 examples/factor_library_sample/  # factor-library sample (full lib: ATLAS_FACTOR_DIR)
-tests/            # 140 tests (offline, synthetic provider)
+tests/            # 148 tests (offline, synthetic provider)
 .streamlit/config.toml + dashboard/style.py  # Jane Street-style light theme
 .github/workflows/ci.yml  # GitHub Actions: lint + tests (3.10/3.12/3.13) + gates
 .gitlab-ci.yml + DEMO.md  # optional GitLab mirror CI & live-demo script
@@ -448,4 +454,5 @@ deployment — this project is read-only market data, keep it that way.
 1. Markowitz, H. (1952). *Portfolio Selection*. Journal of Finance.
 2. Ledoit, O., & Wolf, M. (2003). *Honey, I Shrunk the Sample Covariance Matrix*.
 3. Maillard, S., Roncalli, T., & Teïletche, J. (2010). *The Properties of Equally Weighted Risk Contribution Portfolios*.
-4. *Measures for the Administration of the Suitability of Securities and Futures Investors* (C1–C5 tiering convention).
+4. Bailey, D. H., & López de Prado, M. (2014). *The Deflated Sharpe Ratio: Correcting for Selection Bias, Backtest Overfitting, and Non-Normality*. Journal of Portfolio Management.
+5. *Measures for the Administration of the Suitability of Securities and Futures Investors* (C1–C5 tiering convention).

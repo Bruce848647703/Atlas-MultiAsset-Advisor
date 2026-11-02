@@ -25,6 +25,8 @@ def metrics_table(plan: Plan) -> str:
         ("月度胜率 Win rate", _fmt_pct(m["win_rate"]), _fmt_pct(b.get("win_rate", 0)) if b else "-"),
         ("最差月份 Worst month", _fmt_pct(m["worst_month"]), _fmt_pct(b.get("worst_month", 0)) if b else "-"),
     ]
+    if "cost_drag_annual" in m:
+        rows.append(("年化交易成本 Cost drag", _fmt_pct(m["cost_drag_annual"]), "-"))
     lines = ["| 指标 Metric | 组合 Portfolio | 基准 CSI300ETF Benchmark |", "|---|---|---|"]
     lines += [f"| {n} | {p} | {q} |" for n, p, q in rows]
     return "\n".join(lines)
@@ -131,13 +133,14 @@ def build_report(plan: Plan, chart_paths: Optional[Dict[str, str]] = None,
     L.append(f"> {st.philosophy}\n")
     if plan.menu:
         L.append("策略菜单对比（同数据、各自调仓频率回测）：\n")
-        L.append("| 策略 | 目标 | 调仓 | 年化 | 波动 | 夏普 | 最大回撤 | 年化换手 |")
-        L.append("|---|---|---|---|---|---|---|---|")
+        L.append("| 策略 | 目标 | 调仓 | 年化 | 波动 | 夏普 | DSR | 最大回撤 | 年化换手 |")
+        L.append("|---|---|---|---|---|---|---|---|---|")
         for row in plan.menu:
             mark = " ✅" if row["id"] == st.id else ""
             L.append(f"| {row['name_zh']}{mark} | {row['objective']} | {row['cadence_label']} "
                      f"| {_fmt_pct(row['ann_return'])} | {_fmt_pct(row['ann_vol'])} "
-                     f"| {row['sharpe']:.2f} | {_fmt_pct(row['max_drawdown'])} "
+                     f"| {row['sharpe']:.2f} | {row.get('dsr', 0):.2f} "
+                     f"| {_fmt_pct(row['max_drawdown'])} "
                      f"| {row.get('turnover_annual', 0):.2f} |")
         L.append("")
 

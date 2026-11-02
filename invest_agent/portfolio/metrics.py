@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Dict
+import math
+from statistics import NormalDist
+from typing import Dict, Optional, Sequence
 
 import numpy as np
 
 TRADING_MONTHS = 12
+_EULER_GAMMA = 0.5772156649015329
 
 
 def annualized_return(monthly_returns: np.ndarray) -> float:
@@ -68,3 +71,75 @@ def performance_metrics(monthly_returns, rf: float = 0.02) -> Dict[str, float]:
         "best_month": float(r.max()) if len(r) else 0.0,
         "worst_month": float(r.min()) if len(r) else 0.0,
     }
+
+
+# ---------------------------------------------------------------------------
+# Multiple-testing-aware significance
+# ---------------------------------------------------------------------------
+def period_sharpe(returns) -> float:
+    """Non-annualized (per-period) Sharpe ratio, used by PSR/DSR."""
+    r = np.asarray(returns, dtype=float)
+    if len(r) < 2:
+        return 0.0
+    sd = float(np.std(r, ddof=1))
+    return float(np.mean(r) / sd) if sd > 1e-12 else 0.0
+
+
+def probabilistic_sharpe_ratio(returns, benchmark_sr: float = 0.0) -> float:
+    """Probability that the true Sharpe exceeds ``benchmark_sr``.
+
+    Bailey & López de Prado (2012), adjusted for skewness and kurtosis:
+        PSR = Φ((SR - SR*)·sqrt(n-1) / sqrt(1 - γ3·SR + (γ4-1)/4·SR²))
+    where SR/SR* are per-period and γ4 is non-excess kurtosis.
+    """
+    r = np.asarray(returns, dtype=float)
+    n = len(r)
+    if n < 3:
+        return 0.0
+    sr = period_sharpe(r)
+    sd = float(np.std(r, ddof=0))
+    if sd < 1e-12:
+        return 1.0 if sr > benchmark_sr else 0.0
+    z = (r - r.mean()) / sd
+    skew = float(np.mean(z ** 3))
+    kurt = float(np.mean(z ** 4))          # non-excess
+    var_term = 1.0 - skew * sr + (kurt - 1.0) / 4.0 * sr * sr
+    stat = (sr - benchmark_sr) * math.sqrt(n - 1) / math.sqrt(max(var_term, 1e-12))
+    return 0.5 * (1.0 + math.erf(stat / math.sqrt(2.0)))
+
+
+def expected_max_sharpe(n_trials: int, sr_variance: float) -> float:
+    """Expected maximum per-period Sharpe under the null of zero skill.
+
+    Extreme-value approximation from Bailey & López de Prado (2014):
+        E[max SR] ≈ sqrt(V[SR]) · ((1-γ)Φ⁻¹(1-1/N) + γΦ⁻¹(1-1/(N·e)))
+    """
+    if n_trials <= 1 or sr_variance <= 0:
+        return 0.0
+    nd = NormalDist()
+    a = nd.inv_cdf(1.0 - 1.0 / n_trials)
+    b = nd.inv_cdf(1.0 - 1.0 / (n_trials * math.e))
+    return math.sqrt(sr_variance) * ((1.0 - _EULER_GAMMA) * a + _EULER_GAMMA * b)
+
+
+def deflated_sharpe_ratio(
+    returns,
+    n_trials: int = 1,
+    trial_sharpes: Optional[Sequence[float]] = None,
+) -> float:
+    """Deflated Sharpe Ratio: PSR against the best-of-N null benchmark.
+
+    ``n_trials`` is the number of strategies/configurations that were compared
+    before selecting this one. Pass the per-period Sharpe of those trials so
+    the benchmark uses their observed cross-sectional dispersion; otherwise a
+    single-series variance estimate is used.
+    """
+    srs = [float(s) for s in (trial_sharpes or []) if np.isfinite(s)]
+    if len(srs) > 1:
+        sr_variance = float(np.var(srs, ddof=1))
+    else:
+        sr = period_sharpe(returns)
+        n = max(len(np.asarray(returns, dtype=float)) - 1, 1)
+        sr_variance = (1.0 + 0.5 * sr * sr) / n
+    sr0 = expected_max_sharpe(max(int(n_trials), 1), sr_variance)
+    return probabilistic_sharpe_ratio(returns, benchmark_sr=sr0)

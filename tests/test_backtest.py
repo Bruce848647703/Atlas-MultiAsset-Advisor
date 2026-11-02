@@ -48,6 +48,49 @@ def test_backtest_costs_reduce_return():
     assert res_cost.turnover_series.sum() > 0
 
 
+def _drifting_frame(n=24):
+    idx = pd.period_range("2020-01", periods=n, freq="M")
+    a = np.where(np.arange(n) % 2 == 0, 0.03, -0.01)
+    b = np.full(n, 0.005)
+    return pd.DataFrame({"a": a, "b": b}, index=idx)
+
+
+def test_slippage_adds_to_fee_and_is_reported():
+    df = _drifting_frame()
+    w = np.array([0.5, 0.5])
+    fee_only = run_backtest(df, w, fee=0.001, slippage=0.0)
+    with_slip = run_backtest(df, w, fee=0.001, slippage=0.002)
+
+    assert with_slip.metrics["ann_return"] < fee_only.metrics["ann_return"]
+    assert with_slip.metrics["cost_drag_annual"] > fee_only.metrics["cost_drag_annual"]
+    assert np.allclose(with_slip.cost_series.sum(),
+                       with_slip.metrics["cost_drag_annual"] * len(df) / 12, rtol=1e-9)
+
+
+def test_sell_tax_only_charges_sells():
+    df = _drifting_frame()
+    w = np.array([0.5, 0.5])
+    no_tax = run_backtest(df, w, fee=0.0, sell_tax=0.0)
+    taxed = run_backtest(df, w, fee=0.0, sell_tax=0.001)
+    assert taxed.cost_series.sum() > no_tax.cost_series.sum()
+    # the charge is bounded by all sell notional -> cannot exceed tax × turnover
+    assert taxed.cost_series.sum() <= 0.001 * taxed.turnover_series.sum() + 1e-12
+
+
+def test_rebalance_band_skips_small_trades():
+    df = _drifting_frame()
+    w = np.array([0.5, 0.5])
+    active = run_backtest(df, w, fee=0.0, rebalance_band=0.0)
+    never = run_backtest(df, w, fee=0.0, rebalance_band=10.0)  # unreachable band
+
+    assert active.turnover_series.sum() > 0
+    assert never.turnover_series.sum() == 0
+    assert never.cost_series.sum() == 0
+    # skipping rebalances lets the mix drift, so results must differ
+    assert not np.allclose(active.portfolio_returns.values,
+                           never.portfolio_returns.values)
+
+
 def test_equity_curve():
     df = _flat_series(0.01, n=12, k=1)
     ec = equity_curve(df["a0"], start_value=100.0)

@@ -84,6 +84,12 @@ def _selection_score(strategy: Strategy, metrics: Dict[str, float],
     vol_excess = max(0.0, metrics["ann_vol"] - vol_hint) / max(vol_hint, 1e-6)
     ret_shortfall = max(0.0, target_ret - metrics["ann_return"]) / max(target_ret, 1e-6)
     score = metrics["sharpe"] - 1.5 * vol_excess - 1.2 * ret_shortfall
+    # Multiple-testing haircut: when several strategies were compared, the best
+    # raw Sharpe is upward-biased. DSR (probability the edge is real after
+    # deflating for trials/skew/kurtosis) nudges the choice toward evidence.
+    dsr = metrics.get("dsr")
+    if dsr is not None:
+        score += 0.8 * (float(dsr) - 0.5)
     t = (profile.free_text or "").lower()
     # text boosts are tier-gated so they can't override suitability signals:
     # a C3 saying "稳健增值" must NOT be pushed into pure bonds.
@@ -173,6 +179,9 @@ def build_plan(
     cfg = get_config()
     n_months = n_months or int(cfg["backtest"]["years"]) * 12
     fee_overhead = float(cfg["backtest"]["start_cost"])
+    slippage = float(cfg["backtest"].get("slippage", 0.0))
+    sell_tax = float(cfg["backtest"].get("sell_tax", 0.0))
+    rebalance_band = float(cfg["backtest"].get("rebalance_band", 0.0))
 
     # 1. accessible universe (suitability)
     caps = accessible_classes(profile)
@@ -197,7 +206,8 @@ def build_plan(
     # 3. strategy menu: honest out-of-sample walk-forward, cached per (data, caps)
     from .strategy import evaluate_strategy
     cache_key = (getattr(provider, "name", ""), n_months,
-                 tuple(sorted(eff_caps.items())))
+                 tuple(sorted(eff_caps.items())),
+                 (fee_overhead, slippage, sell_tax, rebalance_band))
     cached = _MENU_CACHE.get(cache_key, {})
     menu_metrics: Dict[str, Dict[str, float]] = {}
     menu_returns: Dict[str, pd.Series] = {}
@@ -210,7 +220,8 @@ def build_plan(
                 m, r = evaluate_strategy(
                     s, returns, classes, mu, cov, eff_caps, fee=avg_fee,
                     assets=universe, walk_forward=True,
-                    prior_monthly=prior_monthly)
+                    prior_monthly=prior_monthly, slippage=slippage,
+                    sell_tax=sell_tax, rebalance_band=rebalance_band)
             except ValueError:
                 continue  # not viable under this profile
             cached[s.id] = {"metrics": m, "returns": r}
@@ -223,6 +234,20 @@ def build_plan(
         })
     _MENU_CACHE[cache_key] = cached
 
+    # 3b. Deflated Sharpe: the menu compares N strategies on one OOS path, so
+    #     the best raw Sharpe is upward-biased. DSR deflates it for the number
+    #     of trials plus skew/kurtosis; it feeds the selection score and is
+    #     displayed in the menu.
+    from .portfolio.metrics import deflated_sharpe_ratio, period_sharpe
+    trial_srs = [period_sharpe(r.values) for r in menu_returns.values()]
+    n_trials = max(len(trial_srs), 1)
+    for sid, rets in menu_returns.items():
+        menu_metrics[sid]["dsr"] = round(
+            deflated_sharpe_ratio(rets.values, n_trials=n_trials,
+                                  trial_sharpes=trial_srs), 4)
+    for row in menu_rows:
+        row["dsr"] = menu_metrics[row["id"]]["dsr"]
+
     # 4. choose strategy (explicit override or auto-selection)
     if strategy_id:
         strategy = next((s for s in STRATEGY_MENU if s.id == strategy_id), None)
@@ -231,7 +256,9 @@ def build_plan(
         if strategy.id not in menu_metrics:  # override not in tier menu -> eval now
             m, r = evaluate_strategy(strategy, returns, classes, mu, cov, eff_caps,
                                      fee=avg_fee, assets=universe, walk_forward=True,
-                                     prior_monthly=prior_monthly)
+                                     prior_monthly=prior_monthly, slippage=slippage,
+                                     sell_tax=sell_tax,
+                                     rebalance_band=rebalance_band)
             menu_metrics[strategy.id] = m
             menu_returns[strategy.id] = r
     else:
