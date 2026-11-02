@@ -26,6 +26,9 @@ def test_plan_respects_suitability_and_gate():
     assert "免责声明" in res["report"]
     assert plan.expected["ann_return"] > 0
     assert 0 < plan.backtest["max_drawdown"] < 1
+    # every menu row carries a Deflated Sharpe in [0, 1]
+    assert plan.menu and all(0.0 <= row["dsr"] <= 1.0 for row in plan.menu)
+    assert "cost_drag_annual" in plan.backtest
 
 
 def test_mass_client_gets_no_futures_even_if_eager():

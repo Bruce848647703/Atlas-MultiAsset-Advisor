@@ -27,7 +27,10 @@ agent:
 
 backtest:
   freq: "M"                  # monthly rebalance
-  start_cost: 0.0008         # one-way cost applied on turnover
+  start_cost: 0.0008         # base one-way cost applied on turnover
+  slippage: 0.0002           # spread + market impact, per unit traded
+  sell_tax: 0.0              # stamp duty etc.; CN ETFs are exempt -> 0
+  rebalance_band: 0.02       # skip rebalances needing <2% portfolio turnover
   years: 8
 
 # Factor knowledge base (JSON library extracted from research documents).

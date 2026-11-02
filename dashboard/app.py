@@ -488,7 +488,8 @@ if plan.menu:
                 "策略": ("✅ " if r["id"] == _st.id else "") + r["name_zh"],
                 "目标": r["objective"], "调仓": r["cadence_label"],
                 "年化": f"{r['ann_return']:.1%}", "波动": f"{r['ann_vol']:.1%}",
-                "夏普": f"{r['sharpe']:.2f}", "最大回撤": f"{r['max_drawdown']:.1%}",
+                "夏普": f"{r['sharpe']:.2f}", "DSR": f"{r.get('dsr', 0):.2f}",
+                "最大回撤": f"{r['max_drawdown']:.1%}",
             })
         st.dataframe(_rows, hide_index=True, use_container_width=True)
 
