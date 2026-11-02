@@ -8,12 +8,12 @@
 ## 0. 演示前准备（一次性）
 
 ```bash
-git clone git@gitlab.xy-inv.com:zhuoming.wang/Atlas-MultiAsset-Advisor.git
+git clone https://github.com/Bruce848647703/Atlas-MultiAsset-Advisor.git
 cd Atlas-MultiAsset-Advisor
-pip install -r requirements.txt        # numpy 需 <1.23, jinja2>=3.1.2
+pip install -r requirements.txt        # Python 3.10+, jinja2>=3.1.2
 
-# 启动面板(局域网可访问)
-make dashboard-host                     # 打开 http://<本机IP>:8501
+# 启动面板(局域网可访问, 必须显式设置访问口令)
+make dashboard-host TOKEN='choose-a-secret'   # 打开 http://<本机IP>:8501
 # 后台自进化守护进程(可选, 展示"自己在学习")
 make evolve-daemon
 ```
@@ -98,7 +98,7 @@ make evolve-daemon
 - **因子库 / 自进化面板**：1000+ 因子库、后台守护每 6 小时自主学习
   （研报 PDF 深解析 + 实证 IC），"不用 Atlas 时它也在学习"
 - **完整报告**：展开，一键导出融合了全部分析的 Markdown（图表内嵌）
-- 收尾讲工程可信度：**132 项测试 + 合规闸门 + 需求理解基准**，GitLab CI 自动跑
+- 收尾讲工程可信度：**135 项测试 + 合规闸门 + 需求理解基准**，GitHub Actions 自动跑
 
 ---
 
@@ -113,7 +113,7 @@ make evolve-daemon
 | 家办视角 | 全球落位降低资本管制/税/汇兑摩擦 |
 | 有机融合 | 量化×大类×地缘×智囊团×落位 → 一个最终建议 |
 | 会自我进化 | 因子库后台自主学习 + 分析师话语权按 IC 校准 |
-| 工程可信 | 132 测试 + 合规闸门 + CI |
+| 工程可信 | 135 测试 + 合规闸门 + CI |
 
 ---
 

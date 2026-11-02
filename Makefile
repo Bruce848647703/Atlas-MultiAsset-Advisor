@@ -19,8 +19,9 @@ chat:            ## interactive CLI (LLM if key set, else offline pipeline)
 dashboard:       ## streamlit UI on localhost (pip install streamlit)
 	streamlit run dashboard/app.py
 
-dashboard-host:  ## streamlit UI open to all interfaces (LAN/public)
-	ATLAS_ACCESS_TOKEN=*** streamlit run dashboard/app.py \
+dashboard-host:  ## streamlit UI on all interfaces (requires TOKEN=<secret>)
+	@test -n "$(TOKEN)" || { echo "error: TOKEN is required, e.g. make dashboard-host TOKEN='s3cret'"; exit 1; }
+	ATLAS_ACCESS_TOKEN='$(TOKEN)' streamlit run dashboard/app.py \
 		--server.address 0.0.0.0 --server.port 8501 --server.headless true
 
 evolve:          ## one factor-learning cycle (foreground)

@@ -31,6 +31,10 @@ def load_config(force: bool = False) -> Dict[str, Any]:
     cfg.update(_load("agent.yaml"))
     cfg["assets"] = _load("assets.yaml")
     cfg["risk"] = _load("risk_profiles.yaml")
+    # Machine-specific paths belong in the environment, not in committed YAML.
+    factor_dir = os.environ.get("ATLAS_FACTOR_DIR")
+    if factor_dir is not None:
+        cfg.setdefault("factors", {})["data_dir"] = factor_dir
     _CACHE = cfg
     return cfg
 

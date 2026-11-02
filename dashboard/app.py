@@ -8,10 +8,11 @@ button, so every answer can be customized first; results persist in
 session state across re-runs.
 
 Optional access gate for remote hosting:
-    ATLAS_ACCESS_TOKEN=*** streamlit run dashboard/app.py \
+    ATLAS_ACCESS_TOKEN='<your-token>' streamlit run dashboard/app.py \
         --server.address 0.0.0.0 --server.port 8501 --server.headless true
 """
 
+import hmac
 import os
 import sys
 
@@ -47,7 +48,7 @@ if _TOKEN:
         st.title("Atlas 多元资产投资顾问")
         pwd = st.text_input("访问口令 Access token", type="password")
         if st.button("进入 Enter"):
-            if pwd == _TOKEN:
+            if hmac.compare_digest(pwd, _TOKEN):
                 st.session_state["atlas_authed"] = True
                 st.rerun()
             else:
@@ -118,13 +119,15 @@ for _region in _ORDER:
 if _rows:
     import pandas as _pd  # noqa: E402
     _df = _pd.DataFrame(_rows)
+    # Styler.map replaced applymap in pandas 2.1; keep a shim for older versions.
+    _style = _df.style
+    _map = getattr(_style, "map", None) or getattr(_style, "applymap")
     _styled = (
-        _df.style
-        .applymap(lambda v: "color:#16a34a;font-weight:600;"
-                  if isinstance(v, (int, float)) and v > 0
-                  else ("color:#d0001d;font-weight:600;"
-                        if isinstance(v, (int, float)) and v < 0 else ""),
-                  subset=["涨跌%"])
+        _map(lambda v: "color:#16a34a;font-weight:600;"
+             if isinstance(v, (int, float)) and v > 0
+             else ("color:#d0001d;font-weight:600;"
+                   if isinstance(v, (int, float)) and v < 0 else ""),
+             subset=["涨跌%"])
         .format({"涨跌%": lambda v: (f"{v:+.2f}" if isinstance(v, (int, float)) else "—")})
         .set_properties(**{"text-align": "right"})
         .hide(axis="index")
