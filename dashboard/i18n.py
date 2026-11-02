@@ -102,8 +102,10 @@ S = {
     "side.custom_contrib": ("自定义每月定投额", "Custom monthly contribution"),
     "side.monthly": ("每月定投 (CNY)", "Monthly contribution (CNY)"),
     "side.provider": ("数据源", "Data source"),
-    "side.provider_help": ("synthetic=离线合成市场；merged=akshare 真实行情 + 合成补齐",
-                           "synthetic=offline simulated market; merged=akshare real data + synthetic fill"),
+    "side.provider_help": ("synthetic=离线合成市场；merged=akshare 真实行情 + 合成补齐；"
+                           "kairos=Kairos 真实 ETF 面板（离线）",
+                           "synthetic=offline simulated market; merged=akshare real data + synthetic fill; "
+                           "kairos=Kairos real ETF panel (offline)"),
     "side.strategy": ("策略", "Strategy"),
     "side.auto": ("自动选择（按画像匹配）", "Auto (match profile)"),
     "side.timing": ("主观择时（可选）", "Market timing (optional)"),
@@ -327,6 +329,39 @@ S = {
     "common.none": ("无", "None"),
     "common.hours": ("{h:.1f} 小时", "{h:.1f} h"),
     "common.never": ("从未", "never"),
+    # Kairos ecosystem
+    "kairos.title": ("Kairos 生态联动", "Kairos Ecosystem"),
+    "kairos.intro": ("Atlas 与同目录的 Kairos 量化套件联动：复用 kairos-data 的真实 ETF 行情、"
+                     "kairos-risk 的 VaR/ES 与风险分解、kairos-research 的研究结论。"
+                     "未检测到兄弟仓库时自动降级，不影响原有功能。",
+                     "Atlas links to the sibling Kairos quant suite: kairos-data real ETF prices, "
+                     "kairos-risk VaR/ES and risk decomposition, and kairos-research findings. "
+                     "Missing siblings degrade gracefully."),
+    "kairos.root": ("Kairos 根目录", "Kairos root"),
+    "kairos.packages": ("已检测包", "Detected packages"),
+    "kairos.data": ("真实 ETF 数据", "Real ETF data"),
+    "kairos.data_line": ("{n} 只 ETF · 目录 {dir}", "{n} ETFs · {dir}"),
+    "kairos.mapped": ("可映射 Atlas 资产", "Mapped Atlas assets"),
+    "kairos.mapped_line": ("{n} 个：{ids}", "{n}: {ids}"),
+    "kairos.research": ("研究结论（kairos-research）", "Research findings (kairos-research)"),
+    "kairos.findings": ("关键发现", "Key findings"),
+    "kairos.champions": ("稳健策略短名单", "Robust strategy shortlist"),
+    "kairos.risk": ("Kairos 风险叠加", "Kairos risk overlay"),
+    "kairos.var": ("历史 VaR 95% / 99%", "Historical VaR 95% / 99%"),
+    "kairos.es": ("期望损失 ES 95% / 99%", "Expected shortfall 95% / 99%"),
+    "kairos.dr": ("分散化比率", "Diversification ratio"),
+    "kairos.effn": ("有效资产数", "Effective N"),
+    "kairos.class_risk": ("类别风险贡献", "Risk contribution by class"),
+    "kairos.not_found": ("未检测到 Kairos 兄弟仓库。设置 KAIROS_ROOT 或把 kairos-* 放在 Atlas 同级目录。",
+                         "No Kairos sibling checkout detected. Set KAIROS_ROOT or place kairos-* next to Atlas."),
+    "kairos.source": ("来源：{src} · {n} 个月度观测", "Source: {src} · {n} monthly observations"),
+    "kairos.col_metric": ("指标", "Metric"),
+    "kairos.col_value": ("值", "Value"),
+    "kairos.col_unit": ("单位", "Unit"),
+    "kairos.col_source": ("来源", "Source"),
+    "kairos.col_strategy": ("策略", "Strategy"),
+    "kairos.col_score": ("稳健分", "Robustness"),
+    "kairos.col_rank": ("排名", "Rank"),
 }
 
 

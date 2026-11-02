@@ -59,7 +59,7 @@ optimizer level, double-checked at the report level.
 
 Key principle: **the quant core is fully deterministic** (plans work with no LLM —
 easy to unit-test and generate training data). **The LLM is the conversational
-interface**, driving the core through **19 tools**:
+interface**, driving the core through **20 tools**:
 
 | Tool | Purpose |
 |---|---|
@@ -81,7 +81,40 @@ interface**, driving the core through **19 tools**:
 | `get_factor_knowledge` | Retrieve factor definitions / formulas / logic / direction from the factor library |
 | `screen_assets_by_factors` | Score/rank the asset pool via the factor lens (momentum/reversal/low-vol/drawdown) |
 | `generate_charts` | 4 charts: allocation donut, risk–return map, equity+drawdown, goal projection |
+| `get_kairos_context` | Optional Kairos ecosystem context: sibling package status, real ETF coverage, VaR/ES risk overlay, research findings |
 | `explain_product` | Product risk education (risk first, return second) |
+
+### Kairos Ecosystem Integration ★ (`integrations/kairos.py`)
+
+Atlas optionally plugs into the sibling **Kairos quant suite** (`../kairos-data`,
+`../kairos-risk`, `../kairos-research`, ...). Nothing is hard-coded or required:
+if the checkouts are absent, every bridge returns empty and Atlas behaves exactly
+as before.
+
+- **Discovery**: `KAIROS_ROOT`, an explicit `integrations.kairos.root`, or a
+  sibling checkout is detected automatically; packages are imported lazily.
+- **Real data**: the `kairos` data provider maps 11 overlapping Atlas assets to
+  the clean, committed ETF CSVs in `kairos-data/data/etf/` (CSI300, CSI500,
+  ChiNext, dividend, S&P500, Nasdaq, HK, bonds, gold, MMF) and fills uncovered
+  assets from the deterministic synthetic world. Fully offline.
+- **Risk overlay**: `kairos-risk` adds VaR 95/99, ES 95/99, Euler risk
+  decomposition by asset class, diversification ratio and effective-N to every
+  plan (`Plan.kairos_risk`), surfaced in the report and dashboard.
+- **Research**: the dashboard panel and the `get_kairos_context` LLM tool read
+  the committed `kairos-research` key findings and robust strategy shortlist, so
+  advisory output can be aligned with the suite's real-data conclusions.
+- **Config** (`config/agent.yaml`):
+
+```yaml
+integrations:
+  kairos:
+    enabled: true
+    root: ""        # empty = auto-detect; or set KAIROS_ROOT
+```
+
+Run Atlas and the Kairos repos side-by-side (as in `~/Documents/Github`) and the
+dashboard exposes a **Kairos Ecosystem** panel; choose data source `kairos` in
+the sidebar for the offline real-ETF provider.
 
 ### LLM Safety Boundary ★ (`harness.py` + `safety.py`)
 
@@ -287,7 +320,7 @@ pip install -r requirements.txt          # numpy/pandas/scipy/matplotlib/openai/
 
 make demo        # offline demo: mass / affluent / HNW → examples/demo_outputs/
 make lint        # ruff static checks (pip install -r requirements-dev.txt)
-make test        # unit + integration tests (170)
+make test        # unit + integration tests (176)
 make eval        # compliance gate (weight legality / caps / disclaimer / segment access)
 make sft         # generate 400 SFT conversations → training/sft_data/train.jsonl
 
@@ -329,7 +362,8 @@ Streamlit dashboard (optional): `pip install streamlit jinja2 && make dashboard`
 - **Intel**: `intel.py` pulls latest financial flashes, topic-tags them, caches 6h.
 - **Data**: `SyntheticProvider` (fixed seed, bear/boom/crypto-crash regimes, offline
   reproducible); `AkshareProvider` + `MergedProvider` (real CN/overseas ETFs, funds,
-  crude NAV; crypto & futures columns filled synthetically).
+  crude NAV; crypto & futures columns filled synthetically); `KairosProvider`
+  (offline real ETF panel from sibling `kairos-data`, synthetic fill for gaps).
 
 ## 5. Local Training Loop
 
@@ -375,20 +409,21 @@ invest_agent/
   global_indices.py # ★ global index board: dual-source (Tencent+EM) + cache + fallback
   intel.py        # ★ market intel: news fetching + topic tagging + cache
   safety.py       # ★ untrusted-text hygiene / injection-pattern neutralisation
+  integrations/   # ★ kairos.py: optional sibling-suite discovery/data/risk/research
   factors/        # ★ loader / lens / enrich(live factors) / factor_store /
                   #   factor_evolution / report_pdf_miner
   advisor.py      # strategy-driven allocation pipeline
   portfolio/      # metrics / optimizer(MV+maxSharpe+minVol+riskParity) /
                   #   backtest(walk-forward) / tactical(momentum+trend gate)
-  data/           # base / synthetic / akshare / universe (26 assets)
-  tools/          # 19 tools exposed to the LLM
+  data/           # base / synthetic / akshare / kairos / universe (26 assets)
+  tools/          # 20 tools exposed to the LLM
   charts.py, report.py, cli.py
 config/           # assets.yaml, risk_profiles.yaml, agent.yaml
 scripts/run_demo.py         dashboard/app.py (streamlit)
 training/         # README / generate_sft_data.py / build_real_dataset.py /
                   # eval/(compliance + requirement benchmark) / finetune/
 examples/factor_library_sample/  # factor-library sample (full lib: ATLAS_FACTOR_DIR)
-tests/            # 170 tests (offline, synthetic provider)
+tests/            # 176 tests (offline, synthetic provider)
 .streamlit/config.toml + dashboard/style.py  # Jane Street-style light theme
 dashboard/i18n.py  # zh-Hans / en / zh-Hant UI catalog + entity labels
 .github/workflows/ci.yml  # GitHub Actions: lint + tests (3.10/3.12/3.13) + gates

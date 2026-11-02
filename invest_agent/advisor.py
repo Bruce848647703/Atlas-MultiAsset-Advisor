@@ -58,6 +58,7 @@ class Plan:
     provider_name: str
     n_months: int
     timing: Optional[Dict[str, float]] = None      # applied subjective tilts
+    kairos_risk: Dict[str, object] = field(default_factory=dict)  # optional Kairos overlay
     notes: List[str] = field(default_factory=list)
 
     @property
@@ -312,6 +313,14 @@ def build_plan(
     bench_series = returns[bench_id] if bench_id in returns.columns else None
     bench_metrics = performance_metrics(bench_series.values) if bench_series is not None else {}
 
+    # 7b. optional Kairos risk overlay (VaR/ES + Euler risk decomposition)
+    kairos_risk: Dict[str, object] = {}
+    try:
+        from .integrations import kairos as _kairos
+        kairos_risk = _kairos.risk_overlay(returns, w, classes, ids)
+    except Exception:  # noqa: BLE001 - optional integration must never break a plan
+        kairos_risk = {}
+
     # 8. frontier + projection
     frontier = efficient_frontier(mu, cov, classes, eff_caps, n_points=20)
     segment = segment_for_capital(profile.capital)
@@ -336,6 +345,7 @@ def build_plan(
         projection=proj, monthly_contrib=contrib,
         provider_name=getattr(provider, "name", provider.__class__.__name__),
         n_months=n_months,
+        kairos_risk=kairos_risk,
         timing=(dict(timing_view.tilts) if timing_view is not None
                 and not timing_view.is_empty() else None),
     )

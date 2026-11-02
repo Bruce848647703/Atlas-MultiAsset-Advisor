@@ -427,6 +427,14 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
         ctx.output_dir = out_dir
         return {"charts": {k: v for k, v in paths.items() if v}}
 
+    def get_kairos_context(args: Dict[str, Any]) -> Dict[str, Any]:
+        """可选 Kairos 生态上下文: 兄弟仓库状态/真实ETF数据/研究结论/风险叠加。"""
+        try:
+            from ..integrations import kairos
+            return kairos.context(ctx.plan)
+        except Exception as e:  # noqa: BLE001
+            return {"error": f"kairos context unavailable: {e}"}
+
     def explain_product(args: Dict[str, Any]) -> Dict[str, Any]:
         asset_id = str(args.get("asset_id", ""))
         universe = build_universe()
@@ -531,6 +539,11 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
         T("generate_charts",
           "为当前方案生成图表(配置环图/风险收益地图/净值曲线/目标投射)，返回文件路径。",
           {"out_dir": {"type": "string"}}, [], generate_charts),
+        T("get_kairos_context",
+          "Kairos 生态联动: 返回同级 kairos-* 仓库状态、真实ETF数据覆盖、"
+          "kairos-risk 的 VaR/ES/风险分解、硅策略研究结论。用于把 Atlas 建议与"
+          "Kairos 量化研究对齐；若未检测到兄弟仓库则返回 available=false。",
+          {}, [], get_kairos_context),
         T("explain_product",
           "解释某类资产/产品的风险特征(先风险后收益)。",
           {"asset_id": {"type": "string"}}, ["asset_id"], explain_product),
