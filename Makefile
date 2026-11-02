@@ -1,4 +1,4 @@
-.PHONY: demo test eval sft chat dashboard dashboard-host evolve evolve-daemon evolve-daemon-stop
+.PHONY: demo test lint eval sft chat dashboard dashboard-host evolve evolve-daemon evolve-daemon-stop
 TOKEN ?=
 
 demo:            ## offline tri-strata demo -> examples/demo_outputs/
@@ -6,6 +6,9 @@ demo:            ## offline tri-strata demo -> examples/demo_outputs/
 
 test:            ## unit + integration tests
 	python3 -m pytest tests/ -q
+
+lint:            ## static checks (pip install -r requirements-dev.txt)
+	python3 -m ruff check .
 
 eval:            ## compliance gate over curated investor cases
 	python3 training/eval/eval_suite.py

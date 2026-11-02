@@ -247,7 +247,6 @@ def select_analysts(ctx: Dict, n: int = 5) -> List[Analyst]:
 def analyst_view(a: Analyst, ctx: Dict) -> Dict:
     """Render one analyst's view on the current allocation."""
     regime = ctx.get("regime", "neutral")
-    plan_classes = ctx.get("plan_classes", {})
     macro = ctx.get("macro_stance", {})
 
     # numeric tilt drives a PERSONALIZED stance (risk assets vs defensive),
@@ -263,22 +262,28 @@ def analyst_view(a: Analyst, ctx: Dict) -> Dict:
     tilt: Dict[str, str] = {}
     tags = set(a.tags)
     if "value" in tags or "defensive" in tags:
-        tilt["fixed_income"] = "增配"; tilt["equity_global"] = "谨慎追高"
+        tilt["fixed_income"] = "增配"
+        tilt["equity_global"] = "谨慎追高"
     if "momentum" in tags or "trend" in tags:
-        tilt["equity_global"] = "顺势持有"; tilt["equity_cn"] = "跟随相对强度"
+        tilt["equity_global"] = "顺势持有"
+        tilt["equity_cn"] = "跟随相对强度"
     if "growth" in tags or "innovation" in tags or "tech" in tags:
-        tilt["equity_global"] = "增配成长"; tilt["crypto"] = "小仓位高弹性" if a.crypto_friendly else "回避"
+        tilt["equity_global"] = "增配成长"
+        tilt["crypto"] = "小仓位高弹性" if a.crypto_friendly else "回避"
     if "macro" in tags or "all_weather" in tags or "risk_parity" in tags:
-        tilt["commodity"] = "对冲"; tilt["fixed_income"] = "均衡"
+        tilt["commodity"] = "对冲"
+        tilt["fixed_income"] = "均衡"
     if "bonds" in tags or "duration" in tags:
         tilt["fixed_income"] = "拉长久期" if regime == "risk-off" else "缩短久期"
     if "tail_hedge" in tags or "barbell" in tags:
-        tilt["cash"] = "厚尾保护"; tilt["commodity"] = "黄金对冲"
+        tilt["cash"] = "厚尾保护"
+        tilt["commodity"] = "黄金对冲"
     if "contrarian" in tags:
         # contrarians lean against the crowd
         tilt["equity_cn"] = "逢悲观布局" if regime == "risk-off" else "警惕过热"
     if "index" in tags or "low_cost" in tags:
-        tilt["equity_global"] = "宽基定投"; tilt["fixed_income"] = "指数化"
+        tilt["equity_global"] = "宽基定投"
+        tilt["fixed_income"] = "指数化"
     # apply regime direction to generic equity if not yet set
     if "equity_global" not in tilt:
         tilt["equity_global"] = {"risk-on": "增配", "risk-off": "减仓"}.get(regime, "标配")

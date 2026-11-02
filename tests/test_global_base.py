@@ -29,10 +29,8 @@ def test_recommend_sorted_and_structured():
 
 def test_low_friction_onshore_ranks_high_for_mass():
     ranked = recommend_bases("C3", _profile(total_capital=300_000))
-    top3_ids = [r["id"] for r in ranked[:3]]
     # a pure-onshore mass investor should see onshore bases on top
-    assert any(recommend_bases("C3", _profile())[i]["category"] == "onshore"
-               for i in range(3))
+    assert any(r["category"] == "onshore" for r in ranked[:3])
 
 
 def test_offshore_needs_experience():

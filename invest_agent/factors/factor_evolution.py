@@ -28,7 +28,7 @@ from typing import Dict, List, Optional
 
 import numpy as np
 
-from .factor_store import add_factor, import_knowledge_base, load_store, stats
+from .factor_store import add_factor, import_knowledge_base, stats
 
 _STATE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
@@ -266,7 +266,7 @@ def collect_from_broker_reports(basket: Optional[List[str]] = None,
             theme = match_factor_theme(title)
             if theme:
                 name = f"report_{theme}"
-                rec = add_factor(
+                add_factor(
                     name, category="券商研报", source="broker_report",
                     name_cn=f"研报因子主题-{theme}",
                     formula="", direction=0,

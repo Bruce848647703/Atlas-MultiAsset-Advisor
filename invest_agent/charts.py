@@ -7,7 +7,7 @@ saved as PNG and referenced from the Markdown/HTML report.
 from __future__ import annotations
 
 import os
-from typing import Dict, List
+from typing import Dict
 
 import matplotlib
 

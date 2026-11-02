@@ -148,7 +148,7 @@ if _geo_refresh or "atlas_geo" not in st.session_state:
     with st.spinner("聚合实时新闻并研判全球局势..."):
         try:
             from invest_agent.geopolitics import (assess_global_situation,  # noqa: E402
-                                                  fetch_global_news, situation_digest)
+                                                  fetch_global_news)
             _gpack = fetch_global_news(max_items=40)
             _gsitu = assess_global_situation(_gpack)
             _gsitu["news_sample"] = [it["title"] for it in _gpack["items"][:8]]
@@ -494,7 +494,7 @@ if plan.menu:
 
 with st.expander("市场情报 Market Intel (最新财经要闻)"):
     if st.button("拉取最新情报 Fetch latest"):
-        from invest_agent.intel import fetch_market_intel, summarize_for_prompt  # noqa: E402
+        from invest_agent.intel import fetch_market_intel  # noqa: E402
         with st.spinner("抓取最新新闻/快讯..."):
             _pack = fetch_market_intel(max_items=20)
         st.session_state["atlas_intel"] = _pack

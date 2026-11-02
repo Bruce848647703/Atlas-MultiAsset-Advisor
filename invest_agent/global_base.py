@@ -16,7 +16,7 @@ Everything is deterministic and explainable — every score ships with reasons.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 # ---------------------------------------------------------------------------
 # Asset profile (enriched questionnaire: what the investor actually holds)

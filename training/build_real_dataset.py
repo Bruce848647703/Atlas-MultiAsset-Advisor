@@ -30,7 +30,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from invest_agent.config import class_priors                     # noqa: E402
 from invest_agent.data.base import get_provider                  # noqa: E402
-from invest_agent.data.universe import build_universe, asset_ids, asset_classes  # noqa: E402
+from invest_agent.data.universe import build_universe, asset_ids  # noqa: E402
 from invest_agent.portfolio.metrics import performance_metrics   # noqa: E402
 from invest_agent.portfolio.optimizer import cov_shrinkage, expected_returns_shrinkage  # noqa: E402
 from invest_agent.strategy import STRATEGY_MENU, build_strategy_weights  # noqa: E402
@@ -62,7 +62,6 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
 def walk_forward_labels(df: pd.DataFrame, train: int = 48, step: int = 6) -> pd.DataFrame:
     """For each window, fit on [0:t), allocate each strategy, then score by
     realized performance over [t:t+step). Produces ground-truth labels."""
-    classes = asset_classes(build_universe())
     priors = class_priors()
     universe = build_universe()
     records = []

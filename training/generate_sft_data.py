@@ -20,8 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from invest_agent.agent import InvestAgent                      # noqa: E402
 from invest_agent.llm import SYSTEM_PROMPT                      # noqa: E402
-from invest_agent.personas import accessible_classes, segment_for_capital  # noqa: E402
-from invest_agent.risk_profiler import QUESTIONS, tier_from_score  # noqa: E402
+from invest_agent.risk_profiler import QUESTIONS  # noqa: E402
 
 DISCLAIMER = ("免责声明: 以上内容由量化模型生成，仅供研究参考，不构成投资建议；"
               "市场有风险，投资需谨慎。")
@@ -124,7 +123,6 @@ def build_one(rng: random.Random, agent: InvestAgent, segment: str, tier: str):
 
     res = agent.offline_plan(answers, capital, free_text=free_text)
     profile, plan = res["profile"], res["plan"]
-    caps = accessible_classes(profile)
 
     lines_alloc = []
     name_of = {a.id: a.name_zh for a in plan.assets}

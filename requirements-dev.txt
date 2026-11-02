@@ -1,0 +1,3 @@
+# Local development / CI tooling on top of the runtime requirements.
+-r requirements.txt
+ruff>=0.6

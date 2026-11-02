@@ -38,7 +38,6 @@ def run_backtest(
     """
     W = np.asarray(weights, dtype=float)
     W = W / W.sum()
-    cols = list(monthly_returns.columns)
     R = monthly_returns.values.astype(float)
     T = R.shape[0]
 
