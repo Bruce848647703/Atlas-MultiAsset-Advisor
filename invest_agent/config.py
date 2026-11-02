@@ -7,7 +7,6 @@ cached; call :func:`load_config` with ``force=True`` to reload.
 from __future__ import annotations
 
 import os
-from functools import lru_cache
 from typing import Any, Dict
 
 import yaml

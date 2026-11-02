@@ -10,7 +10,6 @@ from __future__ import annotations
 import sys
 
 from .agent import InvestAgent
-from .llm import LLMUnavailable
 from .risk_profiler import QUESTIONS
 
 
@@ -76,7 +75,7 @@ def main() -> int:
 
     res = agent.offline_plan(answers, capital, free_text=free_text or None)
     plan, profile = res["plan"], res["profile"]
-    print(f"\n=== 结果 ===")
+    print("\n=== 结果 ===")
     print(f"适当性: {profile.tier} {profile.tier_info['label_zh']} (评分 {profile.score:.0f})")
     print(f"客群: {plan.segment} | 月度定投建议: ¥{plan.monthly_contrib:,.0f}")
     print("配置:")
@@ -89,7 +88,7 @@ def main() -> int:
           f"最大回撤 {plan.backtest['max_drawdown']:.1%}, 夏普 {plan.backtest['sharpe']:.2f}")
     print(f"\n图表: {list(res['charts'].values())}")
     print("完整报告已写入 examples/demo_outputs/report.md")
-    from .report import build_report, save_report
+    from .report import save_report
     save_report(res["report"], "examples/demo_outputs/report.md")
     return 0
 

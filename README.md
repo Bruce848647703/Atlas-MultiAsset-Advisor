@@ -266,6 +266,7 @@ data; the comparison table appears in the page/report.
 pip install -r requirements.txt          # numpy/pandas/scipy/matplotlib/openai/pyyaml/akshare
 
 make demo        # offline demo: mass / affluent / HNW → examples/demo_outputs/
+make lint        # ruff static checks (pip install -r requirements-dev.txt)
 make test        # unit + integration tests (140)
 make eval        # compliance gate (weight legality / caps / disclaimer / segment access)
 make sft         # generate 400 SFT conversations → training/sft_data/train.jsonl
@@ -363,7 +364,7 @@ training/         # README / generate_sft_data.py / build_real_dataset.py /
 examples/factor_library_sample/  # factor-library sample (full lib: ATLAS_FACTOR_DIR)
 tests/            # 140 tests (offline, synthetic provider)
 .streamlit/config.toml + dashboard/style.py  # Jane Street-style light theme
-.github/workflows/ci.yml  # GitHub Actions: tests (3.10/3.12/3.13) + compliance gates
+.github/workflows/ci.yml  # GitHub Actions: lint + tests (3.10/3.12/3.13) + gates
 .gitlab-ci.yml + DEMO.md  # optional GitLab mirror CI & live-demo script
 CONTRIBUTING.md / SECURITY.md  # dev workflow & deployment security notes
 ```

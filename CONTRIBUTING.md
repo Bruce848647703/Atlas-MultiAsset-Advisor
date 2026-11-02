@@ -9,7 +9,7 @@ licensed advisory service — keep that framing in docs and UI copy.
 git clone https://github.com/Bruce848647703/Atlas-MultiAsset-Advisor.git
 cd Atlas-MultiAsset-Advisor
 python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt   # runtime deps + ruff
 ```
 
 Python 3.10+ is supported; CI also runs on 3.13.
@@ -17,6 +17,7 @@ Python 3.10+ is supported; CI also runs on 3.13.
 ## Before opening a PR
 
 ```bash
+make lint    # ruff (pyflakes + high-signal pycodestyle)
 make test    # 140 tests, fully offline (synthetic provider)
 make eval    # suitability caps / disclaimer / requirement-understanding gates
 ```

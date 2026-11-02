@@ -8,7 +8,7 @@ language accordingly.
 
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import Dict
 
 from .config import client_segments
 from .risk_profiler import RiskProfile

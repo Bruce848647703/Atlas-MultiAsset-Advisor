@@ -42,7 +42,6 @@ def eval_case(case):
     exp = case.get("expect", {})
     print(f"\n=== {cid}: {text[:30]}... ===")
     req = parse_requirement(text)
-    got = req.summary()
 
     # risk sign
     if "risk_sign" in exp:

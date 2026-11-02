@@ -1,5 +1,4 @@
-from invest_agent.global_indices import (_trading_status, _group,
-                                         fetch_global_indices)
+from invest_agent.global_indices import _trading_status, _group
 
 
 def test_trading_status_valid():
