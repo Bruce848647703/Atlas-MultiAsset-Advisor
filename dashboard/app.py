@@ -66,16 +66,24 @@ if _TOKEN:
                 st.error(t("gate.wrong", _lang0))
         st.stop()
 
-with st.sidebar:
-    st.markdown("### 🌐 " + t("language", _lang0))
-    lang = st.selectbox(
-        "Language / 语言",
-        LANGS,
-        index=LANGS.index(_lang0),
-        format_func=lambda x: LANG_LABELS[x],
-        key="atlas_lang",
-        label_visibility="collapsed",
-    )
+# Language switch: top-right of the page, "Language: [selector]".
+_top_l, _top_r = st.columns([7, 3], vertical_alignment="bottom")
+with _top_r:
+    _lang_label_col, _lang_select_col = st.columns([1, 2], vertical_alignment="bottom")
+    with _lang_label_col:
+        st.markdown(
+            "<div style='text-align:right;font-weight:600;padding-bottom:.35rem;'>Language:</div>",
+            unsafe_allow_html=True,
+        )
+    with _lang_select_col:
+        lang = st.selectbox(
+            "Language",
+            LANGS,
+            index=LANGS.index(_lang0),
+            format_func=lambda x: LANG_LABELS[x],
+            key="atlas_lang",
+            label_visibility="collapsed",
+        )
 
 st.markdown(
     """
