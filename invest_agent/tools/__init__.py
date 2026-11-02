@@ -21,6 +21,7 @@ from ..intel import fetch_market_intel, summarize_for_prompt
 from ..personas import accessible_classes, describe, segment_for_capital, segment_insight
 from ..portfolio.metrics import performance_metrics
 from ..risk_profiler import profile_from_answers, QUESTIONS
+from ..safety import UNTRUSTED_NOTICE, sanitize_untrusted_text
 from ..strategy import STRATEGY_MENU, menu_for_tier
 from ..timing import views_from_args, extract_timing_views
 from ..macro_advice import generate_macro_advice
@@ -183,12 +184,15 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
 
     def get_market_intel(args: Dict[str, Any]) -> Dict[str, Any]:
         pack = fetch_market_intel(max_items=int(args.get("max_items", 12)))
+        max_items = max(1, min(int(args.get("max_items", 12)), 30))
         return {
             "source_status": pack["source_status"],
             "generated_at": pack["generated_at"],
             "topics_covered": pack["topics_covered"],
-            "brief": summarize_for_prompt(pack, max_items=int(args.get("max_items", 12))),
-            "items": pack["items"][: int(args.get("max_items", 12))],
+            "brief": summarize_for_prompt(pack, max_items=max_items),
+            "items": pack["items"][:max_items],
+            "untrusted": True,
+            "notice": UNTRUSTED_NOTICE,
         }
 
     def apply_timing_views(args: Dict[str, Any]) -> Dict[str, Any]:
@@ -224,10 +228,12 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
     def get_global_situation(args: Dict[str, Any]) -> Dict[str, Any]:
         """全球政治经济局势研判: 实时新闻聚合 + 风险偏好 + 主导议题 + 关注事件。"""
         try:
-            pack = fetch_global_news(max_items=int(args.get("max_items", 40)))
+            pack = fetch_global_news(max_items=max(1, min(int(args.get("max_items", 40)), 100)))
             situ = assess_global_situation(pack)
             situ["digest"] = situation_digest(situ)
             situ["news_sample"] = [it["title"] for it in pack["items"][:10]]
+            situ["untrusted"] = True
+            situ["notice"] = UNTRUSTED_NOTICE
             return situ
         except Exception as e:  # noqa: BLE001
             return {"error": f"global situation unavailable: {e}"}
@@ -385,7 +391,7 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
                     "name": f.name, "name_cn": f.name_cn, "category": f.category,
                     "direction": {1: "与未来收益正相关", -1: "与未来收益负相关", 0: "方向未明"}[f.direction],
                     "is_high_freq": f.is_high_freq,
-                    "rationale": (f.rationale or "")[:400],
+                    "rationale": sanitize_untrusted_text(f.rationale or "", 400),
                 }
                 for f in hits
             ],

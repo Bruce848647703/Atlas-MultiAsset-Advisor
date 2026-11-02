@@ -83,6 +83,23 @@ interface**, driving the core through **19 tools**:
 | `generate_charts` | 4 charts: allocation donut, risk–return map, equity+drawdown, goal projection |
 | `explain_product` | Product risk education (risk first, return second) |
 
+### LLM Safety Boundary ★ (`harness.py` + `safety.py`)
+
+Tool traffic is treated as untrusted in both directions:
+
+- **Argument validation**: every tool call is checked against its JSON schema
+  (required keys, primitive types, enum/bounds) before the handler runs; argument
+  payloads are capped (`max_tool_argument_chars`, default 16k).
+- **Budgets**: at most `max_tool_calls` (24) tool executions per conversation and
+  `max_tool_steps` (8) model turns; oversized tool results are truncated with an
+  explicit `_truncated` marker (`max_tool_result_chars`, 12k).
+- **Prompt-injection hygiene**: news flashes, geopolitical feeds and report-PDF
+  text are flattened, length-capped, stripped of common "ignore previous
+  instructions" patterns, and labelled `untrusted` with a data-only notice before
+  reaching the model. The system prompt explicitly forbids executing embedded
+  instructions or revealing prompts/keys/paths.
+- Config lives under `agent:` in `config/agent.yaml`.
+
 ### Requirement Understanding + Subjective Timing ★
 
 - **Requirement understanding** (`requirement.py`): parses free text into a
@@ -270,7 +287,7 @@ pip install -r requirements.txt          # numpy/pandas/scipy/matplotlib/openai/
 
 make demo        # offline demo: mass / affluent / HNW → examples/demo_outputs/
 make lint        # ruff static checks (pip install -r requirements-dev.txt)
-make test        # unit + integration tests (148)
+make test        # unit + integration tests (161)
 make eval        # compliance gate (weight legality / caps / disclaimer / segment access)
 make sft         # generate 400 SFT conversations → training/sft_data/train.jsonl
 
@@ -339,7 +356,7 @@ Streamlit dashboard (optional): `pip install streamlit jinja2 && make dashboard`
 
 ```
 invest_agent/
-  harness.py      # DeepSeek tool-calling loop (ask_investor pause)
+  harness.py      # DeepSeek tool-calling loop + schema validation/budgets
   llm.py          # OpenAI-compatible client (official API / local vLLM)
   agent.py        # InvestAgent facade (chat + offline_plan)
   risk_profiler.py# 9-question survey + keyword inference + sentiment + LLM prompt
@@ -355,6 +372,7 @@ invest_agent/
   analyst_calibration.py # ★ learnable voice weights (style IC -> multiplier)
   global_indices.py # ★ global index board: dual-source (Tencent+EM) + cache + fallback
   intel.py        # ★ market intel: news fetching + topic tagging + cache
+  safety.py       # ★ untrusted-text hygiene / injection-pattern neutralisation
   factors/        # ★ loader / lens / enrich(live factors) / factor_store /
                   #   factor_evolution / report_pdf_miner
   advisor.py      # strategy-driven allocation pipeline
@@ -368,7 +386,7 @@ scripts/run_demo.py         dashboard/app.py (streamlit)
 training/         # README / generate_sft_data.py / build_real_dataset.py /
                   # eval/(compliance + requirement benchmark) / finetune/
 examples/factor_library_sample/  # factor-library sample (full lib: ATLAS_FACTOR_DIR)
-tests/            # 148 tests (offline, synthetic provider)
+tests/            # 161 tests (offline, synthetic provider)
 .streamlit/config.toml + dashboard/style.py  # Jane Street-style light theme
 .github/workflows/ci.yml  # GitHub Actions: lint + tests (3.10/3.12/3.13) + gates
 .gitlab-ci.yml + DEMO.md  # optional GitLab mirror CI & live-demo script

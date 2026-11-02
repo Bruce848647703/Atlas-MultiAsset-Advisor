@@ -22,11 +22,14 @@ class InvestAgent:
                  output_dir: str = "examples/demo_outputs"):
         self.ctx = AdvisorContext(provider_name=provider_name, output_dir=output_dir)
         self.tools = build_tools(self.ctx)
-        max_steps = int(get_config()["agent"]["max_tool_steps"])
+        agent_cfg = get_config()["agent"]
         self.system_prompt = SYSTEM_PROMPT
         self._llm_provider = llm_provider
         self._client: Optional[LLMClient] = None
-        self._max_steps = max_steps
+        self._max_steps = int(agent_cfg["max_tool_steps"])
+        self._max_tool_calls = int(agent_cfg.get("max_tool_calls", 24))
+        self._max_tool_argument_chars = int(agent_cfg.get("max_tool_argument_chars", 16000))
+        self._max_tool_result_chars = int(agent_cfg.get("max_tool_result_chars", 12000))
 
     # ------------------------------------------------------------------
     @property
@@ -43,7 +46,13 @@ class InvestAgent:
             return False
 
     def chat(self, user_message: str, history: Optional[List[Dict[str, Any]]] = None) -> AgentResult:
-        harness = AgentHarness(self.client, self.tools, self.system_prompt, max_steps=self._max_steps)
+        harness = AgentHarness(
+            self.client, self.tools, self.system_prompt,
+            max_steps=self._max_steps,
+            max_tool_calls=self._max_tool_calls,
+            max_tool_argument_chars=self._max_tool_argument_chars,
+            max_tool_result_chars=self._max_tool_result_chars,
+        )
         return harness.run(user_message, history)
 
     # ------------------------------------------------------------------
