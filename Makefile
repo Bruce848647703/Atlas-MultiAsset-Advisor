@@ -19,12 +19,12 @@ sft:             ## generate SFT conversations for local fine-tuning
 chat:            ## interactive CLI (LLM if key set, else offline pipeline)
 	python3 -m invest_agent.cli
 
-dashboard:       ## streamlit UI on localhost (pip install streamlit)
-	streamlit run dashboard/app.py
+dashboard:       ## streamlit UI on 127.0.0.1:8501 (pip install streamlit)
+	python3 -m streamlit run dashboard/app.py
 
 dashboard-host:  ## streamlit UI on all interfaces (requires TOKEN=<secret>)
 	@test -n "$(TOKEN)" || { echo "error: TOKEN is required, e.g. make dashboard-host TOKEN='s3cret'"; exit 1; }
-	ATLAS_ACCESS_TOKEN='$(TOKEN)' streamlit run dashboard/app.py \
+	ATLAS_ACCESS_TOKEN='$(TOKEN)' python3 -m streamlit run dashboard/app.py \
 		--server.address 0.0.0.0 --server.port 8501 --server.headless true
 
 docker-build:    ## build the non-root runtime image

@@ -297,6 +297,8 @@ make chat
 ```
 
 Streamlit dashboard (optional): `pip install streamlit jinja2 && make dashboard`
+— binds to `127.0.0.1:8501` by default; use `make dashboard-host TOKEN=...`
+(or Docker) for LAN/public access.
 
 ### Sample output
 
