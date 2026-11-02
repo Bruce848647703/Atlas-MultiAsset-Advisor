@@ -17,7 +17,7 @@ Python 3.10+ is supported; CI also runs on 3.13.
 ## Before opening a PR
 
 ```bash
-make test    # 135 tests, fully offline (synthetic provider)
+make test    # 140 tests, fully offline (synthetic provider)
 make eval    # suitability caps / disclaimer / requirement-understanding gates
 ```
 
