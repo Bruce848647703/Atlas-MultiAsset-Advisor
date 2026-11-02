@@ -408,7 +408,7 @@ hexagon motifs.
   dividers, top red rule, red hexagon section markers, thin scrollbars
 - Header: black ATLAS + red hexagon SVG (the JS signature hex)
 - Global index board is one dense quote table, green/red change coloring (pandas Styler, needs `jinja2>=3.1.2`)
-- **Three-language UI** (`dashboard/i18n.py`): a sidebar selector switches 简体中文 /
+- **Three-language UI** (`dashboard/i18n.py`): a top-right `Language:` selector switches 简体中文 /
   English / 繁體中文. UI labels, questionnaire, strategies, assets, basing, council,
   tables and captions all follow the selected language; Traditional Chinese is
   generated from the Simplified source via OpenCC (`zhconv`). External news/PDF
