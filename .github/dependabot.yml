@@ -4,6 +4,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Keep our deliberately permissive lower bounds; only bump when the
+    # current constraint no longer allows the latest release.
+    versioning-strategy: increase-if-necessary
     open-pull-requests-limit: 5
     groups:
       python-dependencies:
