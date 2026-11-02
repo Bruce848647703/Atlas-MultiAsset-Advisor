@@ -21,3 +21,8 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    # Stay on the supported Python line (CI covers 3.10–3.13); skip the
+    # bleeding-edge interpreter image until the suite is validated on it.
+    ignore:
+      - dependency-name: "python"
+        versions: [">=3.14"]
