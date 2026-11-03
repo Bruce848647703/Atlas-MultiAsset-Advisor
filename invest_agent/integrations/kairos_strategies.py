@@ -25,6 +25,9 @@ LAB_VERSION = 1
 DEFAULT_COST = 0.001
 
 
+KAIROS_TO_ATLAS = {symbol: asset_id for asset_id, symbol in bridge.ATLAS_TO_KAIROS.items()}
+
+
 def _pkg():
     return bridge.pkg("kairos_strategies")
 
@@ -181,6 +184,43 @@ def cached_summary(limit: int = 5) -> Dict[str, Any]:
             {k: r[k] for k in ("name", "channel", "sharpe", "cagr", "max_drawdown")}
             for r in pack["strategies"][:limit]
         ],
+    }
+
+
+@lru_cache(maxsize=64)
+def latest_weights(name: str) -> Dict[str, Any]:
+    """Latest target weights of one Kairos strategy, mapped to Atlas asset ids.
+
+    Returns raw (un-normalised) weights so a partially-invested strategy keeps
+    its cash buffer: ``invested`` is the fraction of the strategy sleeve that
+    is actually in risky assets, and ``coverage`` is the share of the strategy
+    that maps onto the Atlas universe.
+    """
+    if not available():
+        return {}
+    ks = _pkg()
+    data = market_data()
+    strategy = next((s for s in ks.discover() if s.name == name), None)
+    if strategy is None or data is None:
+        return {}
+    try:
+        row = strategy.generate_weights(data).iloc[-1]
+    except Exception:  # noqa: BLE001
+        return {}
+    raw = {str(k): max(float(v), 0.0) for k, v in row.items()
+           if float(v) > 1e-9}
+    mapped = {KAIROS_TO_ATLAS[k]: v for k, v in raw.items() if k in KAIROS_TO_ATLAS}
+    total = sum(raw.values())
+    invested = sum(mapped.values())
+    if invested <= 1e-9:
+        return {}
+    return {
+        "name": strategy.name,
+        "channel": strategy.channel,
+        "as_of": str(data.prices.index.max().date()),
+        "weights": mapped,
+        "invested": round(invested, 6),
+        "coverage": round(invested / total, 4) if total > 0 else 0.0,
     }
 
 

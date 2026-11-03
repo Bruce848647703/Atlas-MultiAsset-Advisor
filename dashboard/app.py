@@ -334,6 +334,23 @@ with st.sidebar:
             f"{strategy_name(s, lang)} ({cadence_label(s.cadence, lang)})"
             for s in STRATEGY_MENU if s.id == x),
     )
+    _lab_cache = kairos_lab.load_cached()
+    _lab_names = [r["name"] for r in (_lab_cache or {}).get("strategies", [])[:20]]
+    satellite_choice = "none"
+    satellite_budget = 0.0
+    if _lab_names:
+        with st.expander(t("sat.title", lang)):
+            st.caption(t("sat.help", lang))
+            satellite_choice = st.selectbox(
+                t("sat.title", lang), ["none"] + _lab_names,
+                format_func=lambda x: t("sat.none", lang) if x == "none" else x,
+                key="satellite_choice",
+            )
+            satellite_budget = st.slider(
+                t("sat.budget", lang), 0, 20, 10, 5,
+                disabled=(satellite_choice == "none"),
+                key="satellite_budget",
+            ) / 100.0
     with st.expander(t("side.timing", lang)):
         st.caption(t("side.timing_help", lang))
         use_timing = st.checkbox(t("side.timing_enable", lang), value=False)
@@ -403,6 +420,8 @@ if run:
                 monthly_contrib=float(monthly_contrib) if use_contrib else None,
                 strategy_id=None if strategy_choice == "auto" else strategy_choice,
                 timing=_timing_arg,
+                satellite_strategy=None if satellite_choice == "none" else satellite_choice,
+                satellite_budget=satellite_budget,
             )
         st.session_state["atlas_result"] = res
     except Exception as e:  # noqa: BLE001 - friendly error instead of traceback
@@ -446,6 +465,16 @@ st.success(t("res.selected", lang, name=strategy_name(_st, lang),
              objective=objective_label(_st.objective, lang),
              cadence=cadence_label(_st.cadence, lang)))
 st.caption(strategy_philosophy(_st, lang))
+if plan.satellite:
+    _sat = plan.satellite
+    st.info(t("sat.applied", lang, name=_sat.get("name", "—"),
+              channel=_sat.get("channel", "—"),
+              budget=_sat.get("requested_budget", 0),
+              actual=_sat.get("portfolio_weight", 0),
+              invested=_sat.get("invested", 0),
+              coverage=_sat.get("coverage", 0)))
+    if float(_sat.get("coverage", 0)) < 0.5:
+        st.warning(t("sat.coverage_low", lang, coverage=_sat.get("coverage", 0)))
 if plan.timing:
     _sep = "、 " if lang != "en" else ", "
     _tl = _sep.join(
@@ -931,6 +960,7 @@ with st.expander(t("lab.title", lang)):
                 try:
                     _lab = kairos_lab.run_lab(force=True)
                     st.session_state["atlas_lab"] = _lab
+                    st.rerun()
                 except Exception as _le:  # noqa: BLE001
                     st.warning(t("lab.error", lang, err=_le))
                     _lab = None

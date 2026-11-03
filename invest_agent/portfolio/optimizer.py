@@ -99,6 +99,13 @@ def class_exposures(weights: np.ndarray, asset_classes: Sequence[str]) -> Dict[s
     return out
 
 
+def clip_to_class_caps(
+    w: np.ndarray, asset_classes: Sequence[str], class_caps: Dict[str, float]
+) -> np.ndarray:
+    """Public wrapper: enforce suitability caps after an external overlay."""
+    return _clip_to_class_caps(w, asset_classes, class_caps)
+
+
 def _clip_to_class_caps(
     w: np.ndarray, asset_classes: Sequence[str], class_caps: Dict[str, float]
 ) -> np.ndarray:

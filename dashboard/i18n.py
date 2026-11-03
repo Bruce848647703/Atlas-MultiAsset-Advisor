@@ -389,6 +389,24 @@ S = {
     "lab.description": ("思路：{text}", "Idea: {text}"),
     "lab.params": ("参数：{params}", "Params: {params}"),
     "lab.error": ("策略实验室失败：{err}", "Strategy lab failed: {err}"),
+    # Satellite overlay
+    "sat.title": ("卫星策略叠加", "Satellite strategy overlay"),
+    "sat.none": ("不启用", "None"),
+    "sat.budget": ("卫星仓位上限 (%)", "Max satellite budget (%)"),
+    "sat.help": ("把 Kairos 策略实验室中某个策略的最新权重作为卫星仓位叠加到基础配置；"
+                 "实际投资额取决于策略自身的仓位，且始终受适当性类别上限约束。",
+                 "Blends the latest weights of a Kairos lab strategy into the base plan as a "
+                 "satellite sleeve; actual exposure follows the strategy's own cash level and is "
+                 "always clipped to suitability caps."),
+    "sat.applied": ("已叠加卫星策略：{name}（{channel}）· 预算上限 {budget:.0%} · "
+                    "组合实际仓位 {actual:.1%}（策略自身投资比例 {invested:.0%}）· "
+                    "Atlas 覆盖率 {coverage:.0%}",
+                    "Satellite overlay applied: {name} ({channel}) · budget cap {budget:.0%} · "
+                    "actual portfolio weight {actual:.1%} (strategy invested {invested:.0%}) · "
+                    "Atlas coverage {coverage:.0%}"),
+    "sat.coverage_low": ("该策略只有 {coverage:.0%} 的权重能映射到 Atlas 资产池，叠加效果有限。",
+                         "Only {coverage:.0%} of this strategy maps onto the Atlas universe; "
+                         "the overlay has limited effect."),
 }
 
 

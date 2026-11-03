@@ -109,6 +109,12 @@ as before.
   per-strategy equity curves in the dashboard. Run it from the CLI with
   `make kairos-lab` / `python scripts/kairos_strategy_lab.py`; results are cached
   in `data_cache/kairos_strategy_lab.json` (~30s first run).
+- **Satellite overlay**: once the lab has a cache, the sidebar exposes a
+  **Satellite strategy overlay** control (0–20% budget). Atlas maps the chosen
+  strategy's latest weights to its asset ids, preserves the strategy's own cash
+  level, blends at `budget × invested`, and re-clips to suitability class caps.
+  The plan/report show budget cap, actual portfolio weight and Atlas coverage.
+  Disabled by default; it is an explicit research overlay, not an automatic bet.
 - **Config** (`config/agent.yaml`):
 
 ```yaml
@@ -332,7 +338,7 @@ pip install -r requirements.txt          # numpy/pandas/scipy/matplotlib/openai/
 
 make demo        # offline demo: mass / affluent / HNW → examples/demo_outputs/
 make lint        # ruff static checks (pip install -r requirements-dev.txt)
-make test        # unit + integration tests (179)
+make test        # unit + integration tests (181)
 make eval        # compliance gate (weight legality / caps / disclaimer / segment access)
 make sft         # generate 400 SFT conversations → training/sft_data/train.jsonl
 
@@ -437,7 +443,7 @@ scripts/kairos_strategy_lab.py     # CLI: strategy leaderboard / single curve
 training/         # README / generate_sft_data.py / build_real_dataset.py /
                   # eval/(compliance + requirement benchmark) / finetune/
 examples/factor_library_sample/  # factor-library sample (full lib: ATLAS_FACTOR_DIR)
-tests/            # 179 tests (offline, synthetic provider)
+tests/            # 181 tests (offline, synthetic provider)
 .streamlit/config.toml + dashboard/style.py  # Jane Street-style light theme
 dashboard/i18n.py  # zh-Hans / en / zh-Hant UI catalog + entity labels
 .github/workflows/ci.yml  # GitHub Actions: lint + tests (3.10/3.12/3.13) + gates

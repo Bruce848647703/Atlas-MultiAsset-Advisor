@@ -144,6 +144,20 @@ def build_report(plan: Plan, chart_paths: Optional[Dict[str, str]] = None,
                      f"| {row.get('turnover_annual', 0):.2f} |")
         L.append("")
 
+    if plan.satellite:
+        sat = plan.satellite
+        L.append("### 卫星策略叠加 Satellite Overlay\n")
+        L.append(f"- 策略: **{sat.get('name')}** ({sat.get('channel')}) · "
+                 f"数据截至 {sat.get('as_of', '—')}")
+        L.append(f"- 预算上限 {sat.get('requested_budget', 0):.0%} · "
+                 f"组合实际仓位 {sat.get('portfolio_weight', 0):.1%}"
+                 f"（策略自身投资比例 {sat.get('invested', 0):.1%}）· "
+                 f"Atlas 覆盖率 {sat.get('coverage', 0):.0%}")
+        L.append("- 卫星权重: " + "、".join(
+            f"{zh_of.get(k, k)} {v:.1%}" for k, v in
+            (sat.get("weights") or {}).items()) + "\n")
+        L.append("_已按适当性类别上限裁剪；卫星策略仅作为研究性叠加，不构成投资建议。_\n")
+
     L.append("## 1. 建议配置 Recommended Allocation\n")
     L.append("| 资产 Asset | 类别 Class | 权重 Weight | 预期年化 E[ret] | 年化波动 Vol |")
     L.append("|---|---|---|---|---|")

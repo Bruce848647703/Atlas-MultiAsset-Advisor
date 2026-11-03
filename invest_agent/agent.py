@@ -60,7 +60,9 @@ class InvestAgent:
                      free_text: str = "", monthly_contrib: Optional[float] = None,
                      horizon_years: Optional[int] = None,
                      strategy_id: Optional[str] = None,
-                     timing=None):
+                     timing=None,
+                     satellite_strategy: Optional[str] = None,
+                     satellite_budget: float = 0.0):
         """Deterministic end-to-end plan without the LLM.
 
         `timing` accepts either a free-text view ("看空A股，看多加密") or a
@@ -79,7 +81,8 @@ class InvestAgent:
         view = views_from_args(timing)
         plan = build_plan(profile, self.ctx.get_provider(),
                           monthly_contrib=monthly_contrib, strategy_id=strategy_id,
-                          timing_view=view)
+                          timing_view=view, satellite_strategy=satellite_strategy,
+                          satellite_budget=satellite_budget)
         self.ctx.plan = plan
         charts = render_all(plan, self.ctx.output_dir)
         report = build_report(plan, charts)
