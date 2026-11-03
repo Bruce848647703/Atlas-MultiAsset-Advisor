@@ -24,7 +24,8 @@ from .personas import accessible_classes, segment_for_capital
 from .portfolio.backtest import goal_projection
 from .portfolio.metrics import performance_metrics
 from .portfolio.optimizer import (
-    apply_satellite_floors, class_exposures, cov_shrinkage, efficient_frontier,
+    apply_satellite_floors, class_exposures, clip_to_class_caps, cov_shrinkage,
+    efficient_frontier,
 )
 from .portfolio.tactical import expected_returns_tactical
 from .risk_profiler import RiskProfile
@@ -59,6 +60,7 @@ class Plan:
     n_months: int
     timing: Optional[Dict[str, float]] = None      # applied subjective tilts
     kairos_risk: Dict[str, object] = field(default_factory=dict)  # optional Kairos overlay
+    satellite: Optional[Dict[str, object]] = None  # optional Kairos strategy sleeve
     notes: List[str] = field(default_factory=list)
 
     @property
@@ -176,6 +178,8 @@ def build_plan(
     bench_id: str = "csi300_etf",
     strategy_id: Optional[str] = None,
     timing_view=None,
+    satellite_strategy: Optional[str] = None,
+    satellite_budget: float = 0.0,
 ) -> Plan:
     cfg = get_config()
     n_months = n_months or int(cfg["backtest"]["years"]) * 12
@@ -285,6 +289,41 @@ def build_plan(
         pref = _factor_blend_preference(returns, universe, mu)
         w = apply_satellite_floors(w, classes, eff_caps, floors, preference=pref)
 
+    # 5c. optional Kairos strategy sleeve, bounded and cap-enforced.
+    satellite_info: Optional[Dict[str, object]] = None
+    if satellite_strategy and satellite_budget > 0:
+        try:
+            from .integrations import kairos_strategies as _lab
+            info = _lab.latest_weights(str(satellite_strategy))
+            if info:
+                idx_of = {aid: i for i, aid in enumerate(ids)}
+                vec = np.zeros(len(ids))
+                for aid, weight in (info.get("weights") or {}).items():
+                    if aid in idx_of:
+                        vec[idx_of[aid]] = float(weight)
+                invested = float(vec.sum())
+                budget = float(np.clip(satellite_budget, 0.0, 0.30))
+                if invested > 1e-9:
+                    # Keep the strategy's own cash buffer: only budget×invested
+                    # of the Atlas portfolio is moved into the sleeve.
+                    w = w * (1.0 - budget * invested) + budget * vec
+                    w = clip_to_class_caps(w, classes, eff_caps)
+                    w = w / max(w.sum(), 1e-12)
+                    satellite_info = {
+                        "name": info.get("name", satellite_strategy),
+                        "channel": info.get("channel", ""),
+                        "as_of": info.get("as_of", ""),
+                        "requested_budget": round(budget, 4),
+                        "invested": round(invested, 4),
+                        "portfolio_weight": round(budget * invested, 4),
+                        "coverage": info.get("coverage", 0.0),
+                        "weights": {k: round(float(v), 4)
+                                    for k, v in (info.get("weights") or {}).items()
+                                    if float(v) > 1e-4},
+                    }
+        except Exception:  # noqa: BLE001 - optional overlay
+            satellite_info = None
+
     # 6. ex-ante stats with a DAMPED momentum tilt + the subjective timing view
     #    (full momentum extrapolation would overstate forward expectations)
     kappa_display = min(strategy.momentum_kappa * 0.5, 0.25)
@@ -346,6 +385,7 @@ def build_plan(
         provider_name=getattr(provider, "name", provider.__class__.__name__),
         n_months=n_months,
         kairos_risk=kairos_risk,
+        satellite=satellite_info,
         timing=(dict(timing_view.tilts) if timing_view is not None
                 and not timing_view.is_empty() else None),
     )

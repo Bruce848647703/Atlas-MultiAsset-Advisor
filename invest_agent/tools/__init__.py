@@ -147,6 +147,8 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
             monthly_contrib=float(args["monthly_contrib"]) if args.get("monthly_contrib") else None,
             strategy_id=args.get("strategy_id"),
             timing_view=call_view,
+            satellite_strategy=args.get("satellite_strategy"),
+            satellite_budget=float(args.get("satellite_budget", 0.0) or 0.0),
         )
         ctx.plan = plan
         return {
@@ -157,6 +159,7 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
                 "cadence": plan.strategy.cadence_label,
             },
             "timing_applied": plan.timing,
+            "satellite": plan.satellite,
             "segment": plan.segment,
             "segment_insight": segment_insight(ctx.profile),
             "weights": {k: round(v, 4) for k, v in plan.weights.items()},
@@ -473,7 +476,11 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
           "可通过 timing 参数注入主观择时观点(文本或 {类别: 倾斜度[-1,1]})。",
           {"capital": {"type": "number"}, "monthly_contrib": {"type": "number"},
            "strategy_id": {"type": "string", "description": "可选; 指定策略(见 list_strategies)"},
-           "timing": {"description": "可选; 主观择时观点(文本或 {class: tilt})"}},
+           "timing": {"description": "可选; 主观择时观点(文本或 {class: tilt})"},
+           "satellite_strategy": {"type": "string",
+                                 "description": "可选; Kairos 策略实验室中的策略名作为卫星仓位"},
+           "satellite_budget": {"type": "number", "minimum": 0, "maximum": 0.3,
+                                "description": "卫星仓位上限(0-0.3), 默认0"}},
           [], build_investment_plan),
         T("apply_timing_views",
           "保存投资者的主观择时观点(看多/看空某类资产)，注入下一次配置。"

@@ -2,10 +2,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from invest_agent.agent import InvestAgent
 from invest_agent.data.kairos_provider import KairosProvider
 from invest_agent.data.universe import build_universe
 from invest_agent.integrations import kairos
 from invest_agent.integrations import kairos_strategies as lab
+from invest_agent.personas import accessible_classes
+from invest_agent.portfolio.optimizer import class_exposures
 
 
 def test_status_has_stable_shape():
@@ -95,6 +98,34 @@ def test_strategy_lab_single_curve():
     assert detail["metrics"]["sharpe"] == detail["metrics"]["sharpe"]  # finite
     assert len(detail["equity"]) > 50
     assert {"date", "value"} <= set(detail["equity"][0])
+
+
+@pytest.mark.skipif(not lab.available(),
+                    reason="sibling kairos-strategies / kairos-data not available")
+def test_latest_weights_map_to_atlas_assets():
+    info = lab.latest_weights("low_beta_timing")
+    assert info["name"] == "low_beta_timing"
+    assert info["invested"] > 0
+    assert 0 < info["coverage"] <= 1
+    atlas_ids = {a.id for a in build_universe()}
+    assert set(info["weights"]) <= atlas_ids
+
+
+@pytest.mark.skipif(not lab.available(),
+                    reason="sibling kairos-strategies / kairos-data not available")
+def test_satellite_overlay_respects_suitability_caps():
+    answers = {i: 2 for i in range(9)}
+    res = InvestAgent().offline_plan(
+        answers, capital=600_000, satellite_strategy="low_beta_timing",
+        satellite_budget=0.10)
+    plan, profile = res["plan"], res["profile"]
+    assert plan.satellite is not None
+    assert abs(plan.weight_vector.sum() - 1) < 1e-6
+    caps = accessible_classes(profile)
+    expo = class_exposures(plan.weight_vector,
+                           [a.asset_class for a in plan.assets])
+    for cls, cap in caps.items():
+        assert expo.get(cls, 0.0) <= cap + 1e-6, (cls, expo.get(cls), cap)
 
 
 @pytest.mark.skipif(kairos.pkg("kairos_risk") is None,
