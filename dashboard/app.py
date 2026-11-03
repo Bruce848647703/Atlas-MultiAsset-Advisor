@@ -32,6 +32,7 @@ from i18n import (  # noqa: E402
 )
 from invest_agent.agent import InvestAgent  # noqa: E402
 from invest_agent.integrations import kairos as kairos_bridge  # noqa: E402
+from invest_agent.integrations import kairos_strategies as kairos_lab  # noqa: E402
 from invest_agent.risk_profiler import QUESTIONS  # noqa: E402
 from invest_agent.strategy import STRATEGY_MENU  # noqa: E402
 
@@ -918,6 +919,59 @@ with st.expander(t("kairos.title", lang)):
                      for c, v in sorted(_crisk.items(), key=lambda kv: -kv[1])],
                     hide_index=True, use_container_width=True,
                 )
+
+with st.expander(t("lab.title", lang)):
+    st.caption(t("lab.intro", lang))
+    if not kairos_lab.available():
+        st.info(t("lab.not_available", lang))
+    else:
+        _lab = st.session_state.get("atlas_lab") or kairos_lab.load_cached()
+        if st.button(t("lab.run", lang), key="run_strategy_lab"):
+            with st.spinner(t("lab.spinner", lang)):
+                try:
+                    _lab = kairos_lab.run_lab(force=True)
+                    st.session_state["atlas_lab"] = _lab
+                except Exception as _le:  # noqa: BLE001
+                    st.warning(t("lab.error", lang, err=_le))
+                    _lab = None
+        if _lab and _lab.get("available"):
+            _u = _lab.get("universe", {})
+            st.caption(t("lab.cached", lang, ts=_lab.get("generated_at", "—"),
+                         n=_lab.get("n_strategies", 0),
+                         start=_u.get("start", "—"), end=_u.get("end", "—")))
+            _rows = []
+            for _r in _lab.get("strategies", [])[:20]:
+                _rows.append({
+                    t("kairos.col_strategy", lang): _r["name"],
+                    t("lab.col_channel", lang): _r["channel"],
+                    t("lab.col_cagr", lang): f"{_r['cagr']:.1%}",
+                    t("lab.col_vol", lang): f"{_r['volatility']:.1%}",
+                    t("lab.col_sharpe", lang): f"{_r['sharpe']:.2f}",
+                    t("lab.col_mdd", lang): f"{_r['max_drawdown']:.1%}",
+                    t("lab.col_turnover", lang): f"{_r['avg_turnover']:.3f}",
+                })
+            st.dataframe(_rows, hide_index=True, use_container_width=True)
+            _names = [r["name"] for r in _lab.get("strategies", [])[:20]]
+            if _names:
+                _sel = st.selectbox(t("lab.select", lang), _names, key="lab_strategy_pick")
+                if st.button(t("lab.show", lang), key="lab_show_btn"):
+                    _detail = kairos_lab.run_strategy(_sel)
+                    if not _detail.get("available"):
+                        st.warning(_detail.get("reason", "—"))
+                    else:
+                        if lang != "en":
+                            _desc = _detail.get("description", "")
+                            st.markdown(t("lab.description", lang,
+                                          text=to_hant(_desc) if lang == "zh-Hant" else _desc))
+                        st.caption(t("lab.params", lang, params=_detail.get("params", {})))
+                        import pandas as _pd  # noqa: E402
+                        _eqdf = _pd.DataFrame(_detail["equity"])
+                        _eqdf["date"] = _pd.to_datetime(_eqdf["date"])
+                        _eqdf = _eqdf.set_index("date")["value"]
+                        st.caption(t("lab.equity", lang, name=_sel))
+                        st.line_chart(_eqdf, height=260)
+        elif _lab is None:
+            st.caption(t("lab.no_cache", lang))
 
 with st.expander(t("report.title", lang)):
     if lang == "en":

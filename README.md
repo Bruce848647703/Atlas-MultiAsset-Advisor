@@ -103,6 +103,12 @@ as before.
 - **Research**: the dashboard panel and the `get_kairos_context` LLM tool read
   the committed `kairos-research` key findings and robust strategy shortlist, so
   advisory output can be aligned with the suite's real-data conclusions.
+- **Strategy Lab** (`integrations/kairos_strategies.py`): runs the 106 original
+  `kairos-strategies` long-only strategies on the 14-ETF daily panel, ranks them
+  by Sharpe/CAGR/drawdown/turnover, and exposes a cached leaderboard plus
+  per-strategy equity curves in the dashboard. Run it from the CLI with
+  `make kairos-lab` / `python scripts/kairos_strategy_lab.py`; results are cached
+  in `data_cache/kairos_strategy_lab.json` (~30s first run).
 - **Config** (`config/agent.yaml`):
 
 ```yaml
@@ -113,8 +119,14 @@ integrations:
 ```
 
 Run Atlas and the Kairos repos side-by-side (as in `~/Documents/Github`) and the
-dashboard exposes a **Kairos Ecosystem** panel; choose data source `kairos` in
-the sidebar for the offline real-ETF provider.
+dashboard exposes **Kairos Ecosystem** + **Kairos Strategy Lab** panels; choose
+data source `kairos` in the sidebar for the offline real-ETF provider.
+
+```bash
+make kairos-lab                                  # 106-strategy leaderboard
+python scripts/kairos_strategy_lab.py --strategy low_beta_timing
+python scripts/kairos_strategy_lab.py --channel trend --top 30
+```
 
 ### LLM Safety Boundary ★ (`harness.py` + `safety.py`)
 
@@ -320,7 +332,7 @@ pip install -r requirements.txt          # numpy/pandas/scipy/matplotlib/openai/
 
 make demo        # offline demo: mass / affluent / HNW → examples/demo_outputs/
 make lint        # ruff static checks (pip install -r requirements-dev.txt)
-make test        # unit + integration tests (176)
+make test        # unit + integration tests (179)
 make eval        # compliance gate (weight legality / caps / disclaimer / segment access)
 make sft         # generate 400 SFT conversations → training/sft_data/train.jsonl
 
@@ -419,11 +431,13 @@ invest_agent/
   tools/          # 20 tools exposed to the LLM
   charts.py, report.py, cli.py
 config/           # assets.yaml, risk_profiles.yaml, agent.yaml
+integrations/kairos_strategies.py  # ★ 106-strategy lab / cached leaderboard
 scripts/run_demo.py         dashboard/app.py (streamlit)
+scripts/kairos_strategy_lab.py     # CLI: strategy leaderboard / single curve
 training/         # README / generate_sft_data.py / build_real_dataset.py /
                   # eval/(compliance + requirement benchmark) / finetune/
 examples/factor_library_sample/  # factor-library sample (full lib: ATLAS_FACTOR_DIR)
-tests/            # 176 tests (offline, synthetic provider)
+tests/            # 179 tests (offline, synthetic provider)
 .streamlit/config.toml + dashboard/style.py  # Jane Street-style light theme
 dashboard/i18n.py  # zh-Hans / en / zh-Hant UI catalog + entity labels
 .github/workflows/ci.yml  # GitHub Actions: lint + tests (3.10/3.12/3.13) + gates
