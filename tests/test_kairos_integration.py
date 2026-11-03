@@ -5,6 +5,7 @@ import pytest
 from invest_agent.data.kairos_provider import KairosProvider
 from invest_agent.data.universe import build_universe
 from invest_agent.integrations import kairos
+from invest_agent.integrations import kairos_strategies as lab
 
 
 def test_status_has_stable_shape():
@@ -68,6 +69,32 @@ def test_provider_reads_real_etf_csv(tmp_path):
     assert list(got.columns) == ["csi300_etf"]
     assert got["csi300_etf"].iloc[-1] == pytest.approx(0.01, rel=1e-3)
     assert not got.isna().any().any()
+
+
+def test_strategy_lab_degrades_without_siblings(monkeypatch):
+    monkeypatch.setattr(lab, "available", lambda: False)
+    out = lab.run_lab()
+    assert out["available"] is False
+
+
+@pytest.mark.skipif(not lab.available(),
+                    reason="sibling kairos-strategies / kairos-data not available")
+def test_strategy_lab_runs_one_channel():
+    pack = lab.run_lab(channels=["benchmark"])
+    assert pack["available"] is True
+    assert pack["n_strategies"] >= 1
+    row = pack["strategies"][0]
+    assert {"name", "channel", "sharpe", "cagr", "max_drawdown"} <= set(row)
+
+
+@pytest.mark.skipif(not lab.available(),
+                    reason="sibling kairos-strategies / kairos-data not available")
+def test_strategy_lab_single_curve():
+    detail = lab.run_strategy("low_beta_timing")
+    assert detail["available"] is True
+    assert detail["metrics"]["sharpe"] == detail["metrics"]["sharpe"]  # finite
+    assert len(detail["equity"]) > 50
+    assert {"date", "value"} <= set(detail["equity"][0])
 
 
 @pytest.mark.skipif(kairos.pkg("kairos_risk") is None,

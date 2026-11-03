@@ -263,4 +263,11 @@ def context(plan=None) -> Dict[str, Any]:
     pack["research"] = research_brief()
     if plan is not None and getattr(plan, "kairos_risk", None):
         pack["plan_risk"] = plan.kairos_risk
+    try:
+        from . import kairos_strategies as lab
+        summary = lab.cached_summary()
+        if summary:
+            pack["strategy_lab"] = summary
+    except Exception:  # noqa: BLE001 - optional
+        pass
     return pack

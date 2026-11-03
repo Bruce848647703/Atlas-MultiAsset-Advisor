@@ -362,6 +362,33 @@ S = {
     "kairos.col_strategy": ("策略", "Strategy"),
     "kairos.col_score": ("稳健分", "Robustness"),
     "kairos.col_rank": ("排名", "Rank"),
+    # Kairos Strategy Lab
+    "lab.title": ("Kairos 策略实验室", "Kairos Strategy Lab"),
+    "lab.intro": ("把 kairos-strategies 的 106 个原创策略跑在 kairos-data 的真实 ETF 日线面板上，"
+                  "按夏普/回撤/换手对比；结果缓存在本地。仅展示 long-only 策略。",
+                  "Runs the 106 original kairos-strategies strategies on the real ETF daily panel "
+                  "from kairos-data, ranked by Sharpe/drawdown/turnover; cached locally. Long-only only."),
+    "lab.run": ("运行 / 刷新策略实验室", "Run / refresh lab"),
+    "lab.spinner": ("运行 106 个策略（约 30 秒，结果会缓存）...",
+                    "Running 106 strategies (~30s, results are cached)..."),
+    "lab.cached": ("已缓存：{ts} · {n} 个 long-only 策略 · 数据 {start} → {end}",
+                   "Cached: {ts} · {n} long-only strategies · data {start} → {end}"),
+    "lab.no_cache": ("还没有缓存。点击上方按钮运行一次。",
+                     "No cache yet. Click the button above to run once."),
+    "lab.not_available": ("未检测到 kairos-strategies 或 kairos-data，策略实验室不可用。",
+                          "kairos-strategies or kairos-data not detected; lab unavailable."),
+    "lab.col_channel": ("渠道", "Channel"),
+    "lab.col_cagr": ("年化", "CAGR"),
+    "lab.col_vol": ("波动", "Vol"),
+    "lab.col_sharpe": ("夏普", "Sharpe"),
+    "lab.col_mdd": ("最大回撤", "Max DD"),
+    "lab.col_turnover": ("换手", "Turnover"),
+    "lab.select": ("选择策略查看净值", "Select a strategy to inspect"),
+    "lab.show": ("查看净值曲线", "Show equity curve"),
+    "lab.equity": ("净值曲线（{name}）", "Equity curve ({name})"),
+    "lab.description": ("思路：{text}", "Idea: {text}"),
+    "lab.params": ("参数：{params}", "Params: {params}"),
+    "lab.error": ("策略实验室失败：{err}", "Strategy lab failed: {err}"),
 }
 
 
