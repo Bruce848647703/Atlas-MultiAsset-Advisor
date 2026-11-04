@@ -317,6 +317,38 @@ S = {
     "factor.ic_note": ("IC（信息系数）= 因子值与未来收益的秩相关；|IC| 越大预测力越强。",
                        "IC (information coefficient) = rank correlation with forward returns; larger |IC| = stronger signal."),
     "factor.evo_ic_factor": ("因子", "Factor"),
+    # Factor Forge
+    "ff.title": ("Factor Forge · 研报因子 → 代码", "Factor Forge · report factor → code"),
+    "ff.intro": ("粘贴券商研报里的因子简述（自然语言 + 公式），自动解析为结构化因子，"
+                 "生成可执行 Python 代码并做样本验证；确认后可写入 Atlas 因子库。",
+                 "Paste a broker-report factor brief (prose + formula); it is parsed into a "
+                 "structured factor, compiled to Python and validated on sample data. Confirm to "
+                 "write it into the Atlas factor store."),
+    "ff.brief": ("研报因子简述", "Factor brief"),
+    "ff.placeholder": ("例：\\n资本利得突出量\\n行为金融因子-处置效应\\nCGO = (Close - RP) / Close\\n...",
+                       "e.g.\\nCapital gains overhang\\nBehavioral factor - disposition effect\\n"
+                       "CGO = (Close - RP) / Close\\n..."),
+    "ff.source": ("来源（研报/机构/日期）", "Source (report / institution / date)"),
+    "ff.name": ("因子代码名（可选）", "Factor code name (optional)"),
+    "ff.forge": ("解析并生成代码", "Parse & generate code"),
+    "ff.spinner": ("解析因子并验证生成代码...", "Parsing factor and validating generated code..."),
+    "ff.import": ("写入 Atlas 因子库", "Import into Atlas factor store"),
+    "ff.import_spinner": ("写入因子库...", "Importing into factor store..."),
+    "ff.imported": ("已写入因子库：{name}（{source}）", "Imported into factor store: {name} ({source})"),
+    "ff.not_available": ("未检测到 factor-forge 兄弟仓库。设置 FACTOR_FORGE_ROOT 或把 factor-forge 放在 Atlas 同级目录。",
+                         "No factor-forge sibling checkout detected. Set FACTOR_FORGE_ROOT or place "
+                         "factor-forge next to Atlas."),
+    "ff.error": ("Factor Forge 失败：{err}", "Factor Forge failed: {err}"),
+    "ff.preview": ("结构化因子预览", "Structured factor preview"),
+    "ff.code": ("生成的 Python 代码", "Generated Python code"),
+    "ff.validation": ("样本验证：{status} — {msg}", "Sample validation: {status} — {msg}"),
+    "ff.direction": ("方向", "Direction"),
+    "ff.operator": ("算子", "Operator"),
+    "ff.category": ("类别", "Category"),
+    "ff.fields": ("所需数据字段", "Required data fields"),
+    "ff.import_note": ("写入后会出现在因子库/自进化统计中，source=factor_forge。",
+                       "Once imported it appears in the factor store/evolution stats with "
+                       "source=factor_forge."),
     # report
     "report.title": ("完整报告", "Full report"),
     "report.zh_only": ("完整 Markdown 报告目前由中文分析层生成；切换英文时此处不展示，"

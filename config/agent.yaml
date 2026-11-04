@@ -42,6 +42,10 @@ integrations:
     enabled: true
     # Empty = auto-discover sibling kairos-* checkouts (or set KAIROS_ROOT).
     root: ""
+  factor_forge:
+    enabled: true
+    # Empty = auto-discover sibling factor-forge (or set FACTOR_FORGE_ROOT).
+    root: ""
 
 # Factor knowledge base (JSON library extracted from research documents).
 # Empty disables the external library; the advisor degrades gracefully.

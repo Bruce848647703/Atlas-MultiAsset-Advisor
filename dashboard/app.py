@@ -13,6 +13,7 @@ Optional access gate for remote hosting:
 """
 
 import hmac
+import json
 import os
 import sys
 
@@ -31,6 +32,7 @@ from i18n import (  # noqa: E402
     strategy_philosophy, t, theme_label, tier_label, to_hant,
 )
 from invest_agent.agent import InvestAgent  # noqa: E402
+from invest_agent.integrations import factor_forge as forge_bridge  # noqa: E402
 from invest_agent.integrations import kairos as kairos_bridge  # noqa: E402
 from invest_agent.integrations import kairos_strategies as kairos_lab  # noqa: E402
 from invest_agent.risk_profiler import QUESTIONS  # noqa: E402
@@ -848,6 +850,72 @@ with st.expander(t("factor.kb", lang)):
             st.dataframe(_cs, hide_index=True)
     else:
         st.info(t("factor.kb_empty", lang))
+
+with st.expander(t("ff.title", lang)):
+    st.caption(t("ff.intro", lang))
+    if not forge_bridge.available():
+        st.info(t("ff.not_available", lang))
+    else:
+        _ff_text = st.text_area(t("ff.brief", lang), height=180,
+                               placeholder=t("ff.placeholder", lang),
+                               key="ff_text")
+        _ff_c1, _ff_c2 = st.columns(2)
+        with _ff_c1:
+            _ff_source = st.text_input(t("ff.source", lang), key="ff_source")
+        with _ff_c2:
+            _ff_name = st.text_input(t("ff.name", lang), key="ff_name")
+        if st.button(t("ff.forge", lang), key="ff_forge_btn"):
+            with st.spinner(t("ff.spinner", lang)):
+                try:
+                    st.session_state["atlas_forge"] = forge_bridge.forge(
+                        _ff_text, source=_ff_source, name=_ff_name, validate=True)
+                except Exception as _ffe:  # noqa: BLE001
+                    st.session_state["atlas_forge"] = {"available": False,
+                                                       "reason": str(_ffe)}
+        _ff = st.session_state.get("atlas_forge")
+        if _ff and not _ff.get("available"):
+            st.warning(t("ff.error", lang, err=_ff.get("reason", "—")))
+        elif _ff and _ff.get("available"):
+            _fac = _ff["factor"]
+            st.markdown(f"**{t('ff.preview', lang)}**")
+            _fields = [v.get("data_field") for v in _fac.get("variables", [])
+                       if v.get("data_field")]
+            _prow = [
+                {"name": _fac.get("name", ""),
+                 t("ff.operator", lang): _fac.get("operator", ""),
+                 t("ff.direction", lang): _fac.get("direction", 0),
+                 t("ff.fields", lang): ", ".join(dict.fromkeys(_fields)) or "—"},
+            ]
+            if lang != "en":
+                _prow[0][t("ff.category", lang)] = to_hant(_fac.get("category", "")) \
+                    if lang == "zh-Hant" else _fac.get("category", "")
+            st.dataframe(_prow, hide_index=True, use_container_width=True)
+            _val = _ff.get("validation") or {}
+            if _val:
+                _status = "PASS" if _val.get("ok") else "WARN"
+                st.caption(t("ff.validation", lang, status=_status,
+                             msg=_val.get("message", "")))
+            if lang != "en":
+                _json_txt = json.dumps(_fac, ensure_ascii=False, indent=1)
+                if lang == "zh-Hant":
+                    _json_txt = to_hant(_json_txt)
+                st.code(_json_txt, language="json")
+                _code_txt = _ff.get("code", "")
+                if lang == "zh-Hant":
+                    _code_txt = to_hant(_code_txt)
+                st.markdown(f"**{t('ff.code', lang)}**")
+                st.code(_code_txt, language="python")
+            if st.button(t("ff.import", lang), key="ff_import_btn"):
+                with st.spinner(t("ff.import_spinner", lang)):
+                    try:
+                        _rec = forge_bridge.import_factor(
+                            _fac, _ff.get("code", ""), source=_ff_source,
+                            overwrite=True)
+                        st.success(t("ff.imported", lang,
+                                     name=_rec.get("name", "—"), source="factor_forge"))
+                        st.caption(t("ff.import_note", lang))
+                    except Exception as _ffe:  # noqa: BLE001
+                        st.warning(t("ff.error", lang, err=_ffe))
 
 with st.expander(t("factor.evo", lang), expanded=False):
     from invest_agent.factors.factor_evolution import (  # noqa: E402
