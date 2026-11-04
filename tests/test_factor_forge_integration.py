@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 import pytest
 
 import invest_agent.factors.factor_store as fs
@@ -49,3 +51,38 @@ def test_import_factor_into_store(tmp_path, monkeypatch):
     tools = {t.name: t for t in build_tools(AdvisorContext())}
     out = tools["get_factor_knowledge"].handler({"query": "CGO"})
     assert any(m["name"] == "CGO" for m in out["matched"])
+
+
+@pytest.mark.skipif(not factor_forge.available(),
+                    reason="sibling factor-forge not available")
+def test_evaluate_momentum_on_atlas_panel():
+    forged = factor_forge.forge(factor_forge.sample_brief("momentum"),
+                                source="unit-test")
+    out = factor_forge.evaluate_on_atlas(forged["factor"], forged["code"])
+    assert out["available"] is True
+    assert out["n_periods"] > 20
+    assert out["fields"] == ["close"]
+    assert -1 <= out["mean_ic"] <= 1
+
+
+@pytest.mark.skipif(not factor_forge.available(),
+                    reason="sibling factor-forge not available")
+def test_evaluate_rejects_daily_only_fields():
+    forged = factor_forge.forge(factor_forge.sample_brief("cgo"),
+                                source="unit-test")
+    out = factor_forge.evaluate_on_atlas(forged["factor"], forged["code"])
+    assert out["available"] is False
+    assert "turnover" in out["reason"]
+
+
+def test_forge_pdf_wiring(monkeypatch):
+    candidate = SimpleNamespace(score=9.0, text="fake brief", anchor="因子定义")
+    fake_mod = SimpleNamespace(pdf_to_briefs=lambda path, top_k: [candidate])
+    monkeypatch.setattr(factor_forge, "_module", lambda: fake_mod)
+    monkeypatch.setattr(factor_forge, "forge",
+                        lambda text, source="", validate=True: {
+                            "available": True, "factor": {"name": "X"}, "code": ""})
+    out = factor_forge.forge_pdf("fake.pdf")
+    assert out["available"] is True
+    assert out["n"] == 1
+    assert out["briefs"][0]["anchor"] == "因子定义"

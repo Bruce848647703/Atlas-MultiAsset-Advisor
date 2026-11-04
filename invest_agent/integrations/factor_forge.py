@@ -119,6 +119,110 @@ def forge(brief: str, source: str = "", name: str = "",
     return out
 
 
+_OPERATOR_FIELDS = {
+    "momentum": {"close"},
+    "reversal": {"close"},
+    "volatility": {"close"},
+    "turnover_weighted_price": {"close", "turnover", "vwap"},
+    "generic": set(),
+}
+
+
+def evaluate_on_atlas(factor: Dict[str, Any], code: str,
+                      provider_name: str = "synthetic",
+                      n_months: int = 120) -> Dict[str, Any]:
+    """Cross-sectional IC of a forged factor on the Atlas monthly asset pool.
+
+    Only factors whose inputs are available in Atlas (currently ``close``)
+    can be evaluated. The generated function is executed on cumulative price
+    proxies; forward 1-month returns are used for rank IC.
+    """
+    if not factor or not code:
+        return {"available": False, "reason": "missing factor/code"}
+    op = str(factor.get("operator", ""))
+    fields = set(_OPERATOR_FIELDS.get(op, set()))
+    for var in factor.get("variables", []) or []:
+        if var.get("data_field"):
+            fields.add(var["data_field"])
+    missing = fields - {"close"}
+    if missing:
+        return {
+            "available": False,
+            "reason": f"factor needs {sorted(missing)}; Atlas monthly panel only has close",
+            "fields": sorted(fields),
+        }
+
+    try:
+        import importlib.util
+        import numpy as np
+        import pandas as pd
+        from scipy.stats import spearmanr
+
+        from ..data.base import get_provider
+        from ..data.universe import asset_ids, build_universe
+
+        universe = build_universe()
+        ids = asset_ids(universe)
+        returns = get_provider(provider_name).get_monthly_returns(ids, n_months)[ids]
+        returns = returns.fillna(0.0)
+        prices = (1.0 + returns).cumprod()
+
+        name = _safe_name(str(factor.get("name", "")), "factor")
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / f"{name}.py"
+            path.write_text(code, encoding="utf-8")
+            spec = importlib.util.spec_from_file_location(f"atlas_forged_{name}", path)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            fn = getattr(mod, name)
+            cols = {}
+            for aid in ids:
+                try:
+                    cols[aid] = pd.Series(fn(close=prices[aid]), index=prices.index)
+                except Exception:  # noqa: BLE001
+                    continue
+        if not cols:
+            return {"available": False, "reason": "generated factor produced no series"}
+        fac = pd.DataFrame(cols)
+        fwd = returns.shift(-1)
+
+        ics = []
+        for t in fac.index[:-1]:
+            x = fac.loc[t].replace([np.inf, -np.inf], np.nan).dropna()
+            y = fwd.loc[t].reindex(x.index).dropna()
+            common = x.index.intersection(y.index)
+            if len(common) < 5:
+                continue
+            xv, yv = x.loc[common], y.loc[common]
+            if xv.std() < 1e-12 or yv.std() < 1e-12:
+                continue
+            ic, _ = spearmanr(xv, yv)
+            if np.isfinite(ic):
+                ics.append(float(ic))
+        if not ics:
+            return {"available": False, "reason": "not enough cross-sections for IC"}
+        arr = np.asarray(ics)
+        mean_ic = float(arr.mean())
+        std = float(arr.std(ddof=1)) if len(arr) > 1 else 0.0
+        direction = int(factor.get("direction", 0) or 0)
+        return {
+            "available": True,
+            "provider": provider_name,
+            "n_periods": len(arr),
+            "n_assets": int(fac.shape[1]),
+            "mean_ic": round(mean_ic, 5),
+            "ic_std": round(std, 5),
+            "icir": round(mean_ic / std, 3) if std > 1e-12 else 0.0,
+            "t_stat": round(float(mean_ic / std * np.sqrt(len(arr))), 2) if std > 1e-12 else 0.0,
+            "positive_rate": round(float((arr > 0).mean()), 4),
+            "direction": direction,
+            "direction_match": (None if direction == 0 else bool(mean_ic * direction > 0)),
+            "fields": sorted(fields),
+        }
+    except Exception as exc:  # noqa: BLE001
+        return {"available": False, "reason": f"evaluation failed: {exc}"}
+
+
 def import_factor(factor: Dict[str, Any], code: str, source: str = "",
                   overwrite: bool = False) -> Dict[str, Any]:
     """Write a forged factor (JSON + code) into the Atlas factor store."""
@@ -156,6 +260,36 @@ def import_to_atlas(brief: str, source: str = "", name: str = "",
                            overwrite=overwrite)
     forged.update(stored)
     return forged
+
+
+def pdf_available() -> bool:
+    try:
+        import fitz  # noqa: F401
+        return _module() is not None
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def forge_pdf(path: str, source: str = "", max_briefs: int = 3,
+              validate: bool = True) -> Dict[str, Any]:
+    """PDF research report -> top factor-brief candidates -> forged factors."""
+    mod = _module()
+    if mod is None:
+        return {"available": False, "reason": "factor-forge not detected"}
+    try:
+        candidates = mod.pdf_to_briefs(str(path), top_k=max(1, min(int(max_briefs), 8)))
+    except Exception as exc:  # noqa: BLE001 - missing PyMuPDF / bad PDF
+        return {"available": False, "reason": str(exc)}
+    briefs = []
+    for cand in candidates:
+        forged = forge(cand.text, source=source or str(getattr(cand, "anchor", "")),
+                       validate=validate)
+        if forged.get("available"):
+            forged["brief"] = cand.text
+            forged["score"] = round(float(getattr(cand, "score", 0.0)), 2)
+            forged["anchor"] = getattr(cand, "anchor", "")
+            briefs.append(forged)
+    return {"available": True, "n": len(briefs), "briefs": briefs}
 
 
 def sample_brief(name: str = "cgo") -> Optional[str]:
