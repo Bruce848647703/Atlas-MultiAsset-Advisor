@@ -119,9 +119,28 @@ def load_catalog(data_dir: str) -> FactorCatalog:
     return FactorCatalog(factors=factors, categories=categories, n_records=n_records)
 
 
-def _default_dir() -> str:
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_BUNDLED_SAMPLE = os.path.join(_PROJECT_ROOT, "examples", "factor_library_sample")
+
+
+def default_data_dir() -> str:
+    """Resolve the configured factor-library directory.
+
+    Empty/unset means the bundled ``examples/factor_library_sample`` so the
+    knowledge base works out of the box. Relative paths are resolved against
+    the project root, not the current working directory.
+    """
     cfg = get_config().get("factors", {}) or {}
-    return cfg.get("data_dir", os.path.expanduser("~/signal-name/data/json"))
+    value = str(cfg.get("data_dir", "") or "").strip()
+    if not value:
+        return _BUNDLED_SAMPLE
+    if not os.path.isabs(value):
+        value = os.path.join(_PROJECT_ROOT, value)
+    return os.path.normpath(value)
+
+
+def _default_dir() -> str:
+    return default_data_dir()
 
 
 @lru_cache(maxsize=4)

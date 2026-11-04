@@ -286,12 +286,12 @@ def run_cycle(provider_name: str = "merged", months: int = 96,
               mine_pdfs: bool = True) -> Dict:
     """One full self-evolution cycle with state tracking. Error-tolerant: a
     failing sub-step never aborts the whole cycle."""
-    from ..config import get_config
+    from .loader import default_data_dir
     before = stats()
 
     kb_imported = 0
     if import_kb:
-        kb_dir = knowledge_dir or (get_config().get("factors", {}) or {}).get("data_dir", "")
+        kb_dir = knowledge_dir or default_data_dir()
         if kb_dir:
             try:
                 kb_imported = import_knowledge_base(kb_dir)

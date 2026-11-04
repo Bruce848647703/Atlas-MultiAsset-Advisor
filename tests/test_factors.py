@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 from invest_agent.factors.loader import (
-    FactorCatalog, _direction_of, load_catalog,
+    FactorCatalog, _direction_of, default_catalog, default_data_dir, load_catalog,
 )
 from invest_agent.factors.lens import compute_factor_scores, screen_universe
 from invest_agent.data.universe import build_universe
@@ -15,6 +15,15 @@ def test_direction_mining():
     assert _direction_of("没有方向信息") == 0
     # conflicting -> unknown
     assert _direction_of("正相关，但某些情况下负相关") == 0
+
+
+def test_bundled_factor_library_loads_out_of_the_box():
+    default_catalog.cache_clear()
+    cat = default_catalog()
+    assert len(cat.factors) >= 10
+    assert "mom_12_1" in cat.factors
+    assert "low_vol_60d" in cat.factors
+    assert default_data_dir().endswith("examples/factor_library_sample")
 
 
 def test_load_missing_dir_returns_empty():

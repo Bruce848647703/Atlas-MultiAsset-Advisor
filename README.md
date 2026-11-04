@@ -323,7 +323,10 @@ quarantined instead of being silently overwritten.
 
 ### Factor Library Fusion (1000+ quant factors) ★
 
-`invest_agent/factors/` fuses the external factor library (`signal-name/data/json`:
+`invest_agent/factors/` fuses a factor library. **A 17-factor / 12-category
+sample ships in `examples/factor_library_sample` and loads by default**, so the
+knowledge base and factor lens work immediately after checkout. The full
+`signal-name/data/json` library is:
 1837 records / 1093 factors / 79 categories — momentum/reversal, volatility, liquidity,
 valuation, fundamentals, behavioral finance, HF money-flow, etc.):
 
@@ -339,7 +342,9 @@ valuation, fundamentals, behavioral finance, HF money-flow, etc.):
 - **Three landing points**: ① satellite-sleeve coin selection blends the factor score;
   ② LLM tools retrieve factor knowledge to explain screening; ③ SFT samples inject
   factor-screening rationale so the fine-tuned model "speaks in factors".
-- Config: `config/agent.yaml` → `factors.data_dir` (empty disables, graceful degrade).
+- Config: `config/agent.yaml` → `factors.data_dir` (defaults to the bundled
+  `examples/factor_library_sample`, so the knowledge base works out of the box;
+  set `ATLAS_FACTOR_DIR` for the full 1000+ library).
 
 ### Strategy Layer (amplify strengths, don't pile assets) ★
 
@@ -372,7 +377,7 @@ pip install -r requirements.txt          # numpy/pandas/scipy/matplotlib/openai/
 
 make demo        # offline demo: mass / affluent / HNW → examples/demo_outputs/
 make lint        # ruff static checks (pip install -r requirements-dev.txt)
-make test        # unit + integration tests (191)
+make test        # unit + integration tests (192)
 make eval        # compliance gate (weight legality / caps / disclaimer / segment access)
 make sft         # generate 400 SFT conversations → training/sft_data/train.jsonl
 
@@ -478,7 +483,7 @@ scripts/factor_forge_import.py     # CLI: report brief -> Factor JSON/code -> st
 training/         # README / generate_sft_data.py / build_real_dataset.py /
                   # eval/(compliance + requirement benchmark) / finetune/
 examples/factor_library_sample/  # factor-library sample (full lib: ATLAS_FACTOR_DIR)
-tests/            # 191 tests (offline, synthetic provider)
+tests/            # 192 tests (offline, synthetic provider)
 .streamlit/config.toml + dashboard/style.py  # Jane Street-style light theme
 dashboard/i18n.py  # zh-Hans / en / zh-Hant UI catalog + entity labels
 .github/workflows/ci.yml  # GitHub Actions: lint + tests (3.10/3.12/3.13) + gates
