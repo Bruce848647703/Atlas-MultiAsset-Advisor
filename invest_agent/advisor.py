@@ -31,7 +31,7 @@ from .portfolio.tactical import expected_returns_tactical
 from .risk_profiler import RiskProfile
 from .strategy import (
     STRATEGY_MENU, Strategy, build_strategy_weights, make_weight_builder,
-    menu_for_tier,
+    menu_for_tier, tier_in_range,
 )
 
 # walk-forward menu results are deterministic per (data, caps) -> cache them
@@ -258,6 +258,10 @@ def build_plan(
         strategy = next((s for s in STRATEGY_MENU if s.id == strategy_id), None)
         if strategy is None:
             raise ValueError(f"unknown strategy '{strategy_id}'")
+        if not tier_in_range(profile.tier, strategy.min_tier, strategy.max_tier):
+            raise ValueError(
+                f"strategy '{strategy_id}' is for {strategy.min_tier}-{strategy.max_tier}, "
+                f"not suitable for this profile ({profile.tier})")
         if strategy.id not in menu_metrics:  # override not in tier menu -> eval now
             m, r = evaluate_strategy(strategy, returns, classes, mu, cov, eff_caps,
                                      fee=avg_fee, assets=universe, walk_forward=True,

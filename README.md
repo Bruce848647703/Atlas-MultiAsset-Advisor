@@ -168,6 +168,18 @@ and validates it on sample data. Atlas wraps the pipeline end to end:
 - Auto-detects `../factor-forge` or `FACTOR_FORGE_ROOT`; absent → graceful
   "not available".
 
+### Dashboard State & Consistency
+
+- Language switching preserves every input/questionnaire answer via shadow
+  state (Streamlit recreates keyed widgets when their translated labels change).
+- Basing widgets use stable option IDs, not translated labels, so switching
+  language never clears selected asset types/accounts.
+- The strategy list is filtered by the **current questionnaire tier**; if the
+  tier changes, an out-of-tier selection falls back to Auto. The API also
+  rejects an explicit strategy outside the investor's tier.
+- If questionnaire/inputs change after generating a plan, the result panel warns
+  that it still shows the previous run until Generate is clicked again.
+
 ### LLM Safety Boundary ★ (`harness.py` + `safety.py`)
 
 Tool traffic is treated as untrusted in both directions:
@@ -377,7 +389,7 @@ pip install -r requirements.txt          # numpy/pandas/scipy/matplotlib/openai/
 
 make demo        # offline demo: mass / affluent / HNW → examples/demo_outputs/
 make lint        # ruff static checks (pip install -r requirements-dev.txt)
-make test        # unit + integration tests (192)
+make test        # unit + integration tests (193)
 make eval        # compliance gate (weight legality / caps / disclaimer / segment access)
 make sft         # generate 400 SFT conversations → training/sft_data/train.jsonl
 
@@ -483,7 +495,7 @@ scripts/factor_forge_import.py     # CLI: report brief -> Factor JSON/code -> st
 training/         # README / generate_sft_data.py / build_real_dataset.py /
                   # eval/(compliance + requirement benchmark) / finetune/
 examples/factor_library_sample/  # factor-library sample (full lib: ATLAS_FACTOR_DIR)
-tests/            # 192 tests (offline, synthetic provider)
+tests/            # 193 tests (offline, synthetic provider)
 .streamlit/config.toml + dashboard/style.py  # Jane Street-style light theme
 dashboard/i18n.py  # zh-Hans / en / zh-Hant UI catalog + entity labels
 .github/workflows/ci.yml  # GitHub Actions: lint + tests (3.10/3.12/3.13) + gates

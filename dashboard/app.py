@@ -37,8 +37,8 @@ from invest_agent.factors import custom as custom_factors  # noqa: E402
 from invest_agent.integrations import factor_forge as forge_bridge  # noqa: E402
 from invest_agent.integrations import kairos as kairos_bridge  # noqa: E402
 from invest_agent.integrations import kairos_strategies as kairos_lab  # noqa: E402
-from invest_agent.risk_profiler import QUESTIONS  # noqa: E402
-from invest_agent.strategy import STRATEGY_MENU  # noqa: E402
+from invest_agent.risk_profiler import QUESTIONS, profile_from_answers  # noqa: E402
+from invest_agent.strategy import STRATEGY_MENU, menu_for_tier  # noqa: E402
 
 st.set_page_config(page_title="Atlas · Multi-Asset Advisor", layout="wide")
 
@@ -229,43 +229,76 @@ with st.expander(t("base.profile", lang), expanded=True):
                                           OVERSEAS_ACCOUNT_OPTIONS)
     _ap_type_labels = {o[0]: asset_type_label(o[0], lang) for o in ASSET_TYPE_OPTIONS}
     _ap_acct_labels = {o[0]: account_label(o[0], lang) for o in OVERSEAS_ACCOUNT_OPTIONS}
-    _ap_type_by_label = {v: k for k, v in _ap_type_labels.items()}
-    _ap_acct_by_label = {v: k for k, v in _ap_acct_labels.items()}
+    # Widget values are stable IDs (not translated labels), so switching the
+    # page language never invalidates the current selection.
     _ap_c1, _ap_c2 = st.columns(2)
+    _saved_types = [x for x in st.session_state.get(
+        "ap_types_persist", ["cash_deposit", "cn_fund"]) if x in _ap_type_labels]
+    _saved_accts = [x for x in st.session_state.get(
+        "ap_accts_persist", ["none"]) if x in _ap_acct_labels]
+    _saved_liq = st.session_state.get("ap_liq_persist", "medium")
+    if _saved_liq not in ("low", "medium", "high"):
+        _saved_liq = "medium"
     with _ap_c1:
         _ap_types = st.multiselect(
-            t("base.holdings", lang), list(_ap_type_by_label),
-            default=[asset_type_label("cash_deposit", lang), asset_type_label("cn_fund", lang)])
-        _ap_overseas_pct = st.slider(t("base.overseas_pct", lang), 0, 100, 0, 5)
+            t("base.holdings", lang), list(_ap_type_labels),
+            default=_saved_types,
+            format_func=lambda x: _ap_type_labels.get(x, x),
+            key="ap_types")
+        _ap_overseas_pct = st.slider(
+            t("base.overseas_pct", lang), 0, 100,
+            int(st.session_state.get("ap_overseas_pct_persist", 0)), 5,
+            key="ap_overseas_pct")
     with _ap_c2:
         _ap_accts = st.multiselect(
-            t("base.accounts", lang), list(_ap_acct_by_label),
-            default=[account_label("none", lang)])
-        _liq_opts = [(k, liquidity_label(k, lang)) for k in ("low", "medium", "high")]
-        _ap_liq = st.selectbox(t("base.liquidity", lang), [x[1] for x in _liq_opts], index=1)
-    _ap_capital = st.number_input(t("base.capital", lang), min_value=10_000, value=500_000,
-                                  step=50_000)
+            t("base.accounts", lang), list(_ap_acct_labels),
+            default=_saved_accts, format_func=lambda x: _ap_acct_labels.get(x, x),
+            key="ap_accts")
+        _ap_liq = st.selectbox(
+            t("base.liquidity", lang), ["low", "medium", "high"],
+            index=["low", "medium", "high"].index(_saved_liq),
+            format_func=lambda x: liquidity_label(x, lang), key="ap_liq")
+    _ap_capital = st.number_input(
+        t("base.capital", lang), min_value=10_000,
+        value=int(st.session_state.get("ap_capital_persist", 500_000)),
+        step=50_000, key="ap_capital")
+    st.session_state["ap_types_persist"] = list(_ap_types)
+    st.session_state["ap_accts_persist"] = list(_ap_accts)
+    st.session_state["ap_liq_persist"] = _ap_liq
+    st.session_state["ap_overseas_pct_persist"] = int(_ap_overseas_pct)
+    st.session_state["ap_capital_persist"] = _ap_capital
     _ap_gen = st.button(t("base.generate", lang), key="gen_bases")
 if _ap_gen:
     from invest_agent.global_base import AssetProfile, recommend_bases  # noqa: E402
-    _ap_type_ids = [_ap_type_by_label[x] for x in _ap_types if x in _ap_type_by_label]
-    _liq_map = {liquidity_label(k, lang): k for k in ("low", "medium", "high")}
+    _ap_type_ids = [x for x in _ap_types if x in _ap_type_labels]
     _ap = AssetProfile(
         asset_types=_ap_type_ids,
         overseas_pct=float(_ap_overseas_pct),
-        overseas_accounts=[_ap_acct_by_label[a] for a in _ap_accts
-                           if a in _ap_acct_by_label] or ["none"],
+        overseas_accounts=[a for a in _ap_accts if a in _ap_acct_labels] or ["none"],
         total_capital=float(_ap_capital),
         crypto_held=("crypto" in _ap_type_ids),
-        liquidity_need=_liq_map.get(_ap_liq, "medium"),
+        liquidity_need=_ap_liq,
     )
-    # risk tier: from the last generated plan (session), else C3 default
+    # Risk tier: follow the current questionnaire answers, not a stale plan.
     _tier = "C3"
-    if st.session_state.get("atlas_result"):
-        try:
-            _tier = st.session_state["atlas_result"]["profile"].tier
-        except Exception:  # noqa: BLE001
-            pass
+    try:
+        _ans_now = {
+            i: st.session_state.get(
+                f"atlas_q{i}",
+                st.session_state.get("atlas_answers_persist", {}).get(i, 2))
+            for i in range(len(QUESTIONS))
+        }
+        _tier = profile_from_answers(
+            _ans_now,
+            capital=float(st.session_state.get("capital_persist", 300_000)),
+            free_text=st.session_state.get("free_text_persist", ""),
+        ).tier
+    except Exception:  # noqa: BLE001
+        if st.session_state.get("atlas_result"):
+            try:
+                _tier = st.session_state["atlas_result"]["profile"].tier
+            except Exception:  # noqa: BLE001
+                pass
     st.session_state["atlas_asset_profile"] = _ap     # reuse in final advice
     st.session_state["atlas_bases"] = {"tier": _tier,
                                        "ranked": recommend_bases(_tier, _ap)}
@@ -315,29 +348,78 @@ st.divider()
 # ----------------------------------------------------------------------
 with st.sidebar:
     st.header(t("side.inputs", lang))
-    capital = st.number_input(t("side.capital", lang), min_value=10_000, value=300_000, step=10_000)
-    free_text = st.text_input(t("side.free_text", lang),
-                              value=pick("能接受短期波动，但不想亏掉本金",
-                                         "Can tolerate short-term swings, but not losing principal", lang))
-    use_contrib = st.checkbox(t("side.custom_contrib", lang), value=False)
+    # Shadow state: Streamlit resets a keyed widget when its label changes
+    # (e.g. switching the page language). Persisting the value and feeding it
+    # back as the default/index keeps the user's choices stable.
+    capital = st.number_input(
+        t("side.capital", lang), min_value=10_000,
+        value=int(st.session_state.get("capital_persist", 300_000)),
+        step=10_000, key="capital")
+    st.session_state["capital_persist"] = capital
+    free_text = st.text_input(
+        t("side.free_text", lang),
+        value=st.session_state.get(
+            "free_text_persist",
+            pick("能接受短期波动，但不想亏掉本金",
+                 "Can tolerate short-term swings, but not losing principal", lang)),
+        key="free_text")
+    st.session_state["free_text_persist"] = free_text
+    use_contrib = st.checkbox(
+        t("side.custom_contrib", lang),
+        value=bool(st.session_state.get("use_contrib_persist", False)),
+        key="use_contrib")
+    st.session_state["use_contrib_persist"] = use_contrib
     monthly_contrib = st.number_input(
-        t("side.monthly", lang), min_value=0, value=3000, step=500,
-        disabled=not use_contrib)
+        t("side.monthly", lang), min_value=0,
+        value=int(st.session_state.get("monthly_contrib_persist", 3000)),
+        step=500, disabled=not use_contrib, key="monthly_contrib")
+    st.session_state["monthly_contrib_persist"] = monthly_contrib
     _provider_options = ["synthetic", "merged"]
     if kairos_bridge.etf_dir() is not None:
         _provider_options.append("kairos")
+    _saved_provider = st.session_state.get("provider_persist", "synthetic")
+    if _saved_provider not in _provider_options:
+        _saved_provider = _provider_options[0]
     provider = st.radio(
         t("side.provider", lang),
         _provider_options,
+        index=_provider_options.index(_saved_provider),
         help=t("side.provider_help", lang),
+        key="provider",
     )
+    st.session_state["provider_persist"] = provider
+    # Strategy options follow the current questionnaire tier, so a C1 profile
+    # can never stay on a C5-only strategy after the questionnaire changes.
+    _saved_q = st.session_state.get("atlas_answers_persist", {})
+    # Prefer the live widget state (updated by the frontend before this run) so
+    # the strategy list reacts in the same rerun as a questionnaire change.
+    _preview_answers = {i: st.session_state.get(f"atlas_q{i}", _saved_q.get(i, 2))
+                        for i in range(len(QUESTIONS))}
+    try:
+        _preview_profile = profile_from_answers(
+            _preview_answers, capital=float(capital), free_text=free_text or "")
+        _tier_ok = menu_for_tier(_preview_profile.tier)
+    except Exception:  # noqa: BLE001 - keep the UI usable
+        _preview_profile = None
+        _tier_ok = list(STRATEGY_MENU)
+    _strategy_ids = ["auto"] + [s.id for s in _tier_ok]
+    _saved_strategy = st.session_state.get("strategy_persist", "auto")
+    if _saved_strategy not in _strategy_ids:
+        _saved_strategy = "auto"
     strategy_choice = st.selectbox(
         t("side.strategy", lang),
-        ["auto"] + [s.id for s in STRATEGY_MENU],
+        _strategy_ids,
+        index=_strategy_ids.index(_saved_strategy),
         format_func=lambda x: t("side.auto", lang) if x == "auto" else next(
-            f"{strategy_name(s, lang)} ({cadence_label(s.cadence, lang)})"
-            for s in STRATEGY_MENU if s.id == x),
+            (f"{strategy_name(s, lang)} ({cadence_label(s.cadence, lang)})"
+             for s in STRATEGY_MENU if s.id == x), x),
+        key="strategy_choice",
     )
+    st.session_state["strategy_persist"] = strategy_choice
+    if _preview_profile is not None:
+        st.caption(t("side.strategy_tier_hint", lang,
+                     tier=f"{_preview_profile.tier} "
+                          f"{tier_label(_preview_profile.tier_info, lang)}"))
     _lab_cache = kairos_lab.load_cached()
     _lab_names = [r["name"] for r in (_lab_cache or {}).get("strategies", [])[:20]]
     satellite_choice = "none"
@@ -345,27 +427,46 @@ with st.sidebar:
     if _lab_names:
         with st.expander(t("sat.title", lang)):
             st.caption(t("sat.help", lang))
+            _sat_options = ["none"] + _lab_names
+            _saved_sat = st.session_state.get("satellite_persist", "none")
+            if _saved_sat not in _sat_options:
+                _saved_sat = "none"
             satellite_choice = st.selectbox(
-                t("sat.title", lang), ["none"] + _lab_names,
+                t("sat.title", lang), _sat_options,
+                index=_sat_options.index(_saved_sat),
                 format_func=lambda x: t("sat.none", lang) if x == "none" else x,
                 key="satellite_choice",
             )
+            st.session_state["satellite_persist"] = satellite_choice
             satellite_budget = st.slider(
-                t("sat.budget", lang), 0, 20, 10, 5,
+                t("sat.budget", lang), 0, 20,
+                int(st.session_state.get("satellite_budget_persist", 10)), 5,
                 disabled=(satellite_choice == "none"),
                 key="satellite_budget",
             ) / 100.0
+            st.session_state["satellite_budget_persist"] = int(satellite_budget * 100)
     with st.expander(t("side.timing", lang)):
         st.caption(t("side.timing_help", lang))
-        use_timing = st.checkbox(t("side.timing_enable", lang), value=False)
+        use_timing = st.checkbox(
+            t("side.timing_enable", lang),
+            value=bool(st.session_state.get("use_timing_persist", False)),
+            key="use_timing")
+        st.session_state["use_timing_persist"] = use_timing
         _t_sliders = {}
+        _t_saved = st.session_state.get("timing_sliders_persist", {})
         for _cls in ("equity_cn", "equity_global", "crypto", "commodity",
                      "fixed_income", "hybrid"):
-            _t_sliders[_cls] = st.slider(class_label(_cls, lang), -1.0, 1.0, 0.0, 0.25,
-                                         disabled=not use_timing, key=f"t_{_cls}")
-        _timing_free = st.text_input(t("side.timing_text", lang), "",
-                                     placeholder=t("side.timing_placeholder", lang),
-                                     disabled=not use_timing)
+            _t_sliders[_cls] = st.slider(
+                class_label(_cls, lang), -1.0, 1.0,
+                float(_t_saved.get(_cls, 0.0)), 0.25,
+                disabled=not use_timing, key=f"t_{_cls}")
+        st.session_state["timing_sliders_persist"] = dict(_t_sliders)
+        _timing_free = st.text_input(
+            t("side.timing_text", lang),
+            st.session_state.get("timing_free_persist", ""),
+            placeholder=t("side.timing_placeholder", lang),
+            disabled=not use_timing, key="timing_free")
+        st.session_state["timing_free_persist"] = _timing_free
     with st.expander(t("side.menu", lang)):
         st.dataframe(
             [{t("side.menu_strategy", lang): strategy_name(s, lang),
@@ -384,16 +485,20 @@ with st.sidebar:
 # ----------------------------------------------------------------------
 st.subheader(t("q.title", lang))
 answers = {}
+_saved_answers = st.session_state.get("atlas_answers_persist", {})
 cols = st.columns(3)
 for i, (_w, _q_zh, _q_en, opts) in enumerate(QUESTIONS):
     with cols[i % 3]:
+        _q_default = int(_saved_answers.get(i, 2))
+        _q_default = max(0, min(_q_default, len(opts) - 1))
         answers[i] = st.selectbox(
             t("q.prefix", lang, n=i, q=question_text((_w, _q_zh, _q_en, opts), lang)),
             range(len(opts)),
-            index=2,
+            index=_q_default,
             format_func=lambda j, o=opts: option_text(o[j], lang),
             key=f"atlas_q{i}",
         )
+st.session_state["atlas_answers_persist"] = {i: int(v) for i, v in answers.items()}
 
 # ----------------------------------------------------------------------
 # Generate
@@ -404,6 +509,25 @@ with c_btn:
     run = st.button(t("gen.button", lang), type="primary", use_container_width=True)
 with c_note:
     st.caption(t("gen.note", lang))
+
+def _input_signature() -> str:
+    """Stable fingerprint of every input that changes a generated plan."""
+    return json.dumps({
+        "answers": {str(i): int(v) for i, v in answers.items()},
+        "capital": float(capital),
+        "free_text": free_text,
+        "provider": provider,
+        "strategy": strategy_choice,
+        "use_contrib": bool(use_contrib),
+        "monthly_contrib": float(monthly_contrib),
+        "timing": {
+            "enabled": bool(use_timing),
+            "text": _timing_free,
+            "sliders": {k: float(v) for k, v in _t_sliders.items()},
+        },
+        "satellite": [satellite_choice, float(satellite_budget)],
+    }, sort_keys=True, ensure_ascii=False)
+
 
 if run:
     agent = InvestAgent(provider_name=provider, output_dir="examples/demo_outputs")
@@ -427,6 +551,7 @@ if run:
                 satellite_strategy=None if satellite_choice == "none" else satellite_choice,
                 satellite_budget=satellite_budget,
             )
+        res["_signature"] = _input_signature()
         st.session_state["atlas_result"] = res
     except Exception as e:  # noqa: BLE001 - friendly error instead of traceback
         st.error(t("gen.error", lang, err=f"{type(e).__name__}: {e}"))
@@ -440,6 +565,8 @@ if res is None:
     st.stop()
 
 plan, profile = res["plan"], res["profile"]
+if res.get("_signature") and res["_signature"] != _input_signature():
+    st.warning(t("gen.stale", lang))
 st.subheader(t("res.title", lang, tier=profile.tier,
                tier_label=tier_label(profile.tier_info, lang),
                score=profile.score, segment=segment_label(plan.segment, lang),
@@ -858,14 +985,22 @@ with st.expander(t("ff.title", lang)):
     if not forge_bridge.available():
         st.info(t("ff.not_available", lang))
     else:
-        _ff_text = st.text_area(t("ff.brief", lang), height=180,
-                               placeholder=t("ff.placeholder", lang),
-                               key="ff_text")
+        _ff_text = st.text_area(
+            t("ff.brief", lang),
+            st.session_state.get("ff_text_persist", ""), height=180,
+            placeholder=t("ff.placeholder", lang), key="ff_text")
+        st.session_state["ff_text_persist"] = _ff_text
         _ff_c1, _ff_c2 = st.columns(2)
         with _ff_c1:
-            _ff_source = st.text_input(t("ff.source", lang), key="ff_source")
+            _ff_source = st.text_input(
+                t("ff.source", lang),
+                st.session_state.get("ff_source_persist", ""), key="ff_source")
+            st.session_state["ff_source_persist"] = _ff_source
         with _ff_c2:
-            _ff_name = st.text_input(t("ff.name", lang), key="ff_name")
+            _ff_name = st.text_input(
+                t("ff.name", lang),
+                st.session_state.get("ff_name_persist", ""), key="ff_name")
+            st.session_state["ff_name_persist"] = _ff_name
 
         _ff_pdf = st.file_uploader(t("ff.pdf", lang), type=["pdf"], key="ff_pdf")
         if _ff_pdf is not None and st.button(t("ff.pdf_parse", lang), key="ff_pdf_btn"):
@@ -1169,7 +1304,13 @@ with st.expander(t("lab.title", lang)):
             st.dataframe(_rows, hide_index=True, use_container_width=True)
             _names = [r["name"] for r in _lab.get("strategies", [])[:20]]
             if _names:
-                _sel = st.selectbox(t("lab.select", lang), _names, key="lab_strategy_pick")
+                _saved_lab = st.session_state.get("lab_strategy_persist", _names[0])
+                if _saved_lab not in _names:
+                    _saved_lab = _names[0]
+                _sel = st.selectbox(t("lab.select", lang), _names,
+                                    index=_names.index(_saved_lab),
+                                    key="lab_strategy_pick")
+                st.session_state["lab_strategy_persist"] = _sel
                 if st.button(t("lab.show", lang), key="lab_show_btn"):
                     _detail = kairos_lab.run_strategy(_sel)
                     if not _detail.get("available"):
