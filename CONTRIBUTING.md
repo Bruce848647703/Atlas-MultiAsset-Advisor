@@ -18,7 +18,7 @@ Python 3.10+ is supported; CI also runs on 3.13.
 
 ```bash
 make lint    # ruff (pyflakes + high-signal pycodestyle)
-make test    # 192 tests, fully offline (synthetic provider)
+make test    # 193 tests, fully offline (synthetic provider)
 make eval    # suitability caps / disclaimer / requirement-understanding gates
 ```
 

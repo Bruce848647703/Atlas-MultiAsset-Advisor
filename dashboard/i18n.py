@@ -107,6 +107,9 @@ S = {
                            "synthetic=offline simulated market; merged=akshare real data + synthetic fill; "
                            "kairos=Kairos real ETF panel (offline)"),
     "side.strategy": ("策略", "Strategy"),
+    "side.strategy_tier_hint": ("当前问卷等级 {tier}：策略列表已按适当性过滤，无效选项会自动回到自动选择。",
+                                "Current questionnaire tier {tier}: strategies are filtered by "
+                                "suitability; invalid choices fall back to Auto."),
     "side.auto": ("自动选择（按画像匹配）", "Auto (match profile)"),
     "side.timing": ("主观择时（可选）", "Market timing (optional)"),
     "side.timing_help": ("表达对各类资产的多空观点：-1=强烈看空，0=中性，+1=强烈看多。"
@@ -146,6 +149,9 @@ S = {
                   "Generation failed: {err}\nAdjust the questionnaire/strategy and retry, "
                   "or use Auto strategy in the sidebar."),
     "gen.need_input": ("请先完成问卷并点击「生成方案」。", "Complete the questionnaire and click Generate plan."),
+    "gen.stale": ("问卷或输入已修改，下方仍是上一次生成的方案。请重新点击「生成方案」以更新结果。",
+                  "Inputs or questionnaire have changed; the results below are from the previous run. "
+                  "Click Generate plan again to refresh."),
     # results
     "res.title": ("③ 结果：适当性 {tier} {tier_label}（评分 {score:.0f}）· 客群 {segment} · 数据源 {provider}",
                   "③ Result: suitability {tier} {tier_label} (score {score:.0f}) · segment {segment} · source {provider}"),

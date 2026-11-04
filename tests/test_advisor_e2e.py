@@ -31,6 +31,17 @@ def test_plan_respects_suitability_and_gate():
     assert "cost_drag_annual" in plan.backtest
 
 
+def test_explicit_strategy_outside_tier_is_rejected():
+    from invest_agent.advisor import build_plan
+    from invest_agent.data.synthetic import SyntheticProvider
+    from invest_agent.risk_profiler import profile_from_answers
+
+    profile = profile_from_answers({i: 0 for i in range(9)}, capital=100_000)
+    assert profile.tier == "C1"
+    with pytest.raises(ValueError, match="not suitable"):
+        build_plan(profile, SyntheticProvider(), strategy_id="crypto_barbell")
+
+
 def test_mass_client_gets_no_futures_even_if_eager():
     agent = InvestAgent()
     res = agent.offline_plan({i: 3 for i in range(9)}, capital=100_000,
