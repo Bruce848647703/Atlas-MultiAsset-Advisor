@@ -33,6 +33,7 @@ from i18n import (  # noqa: E402
     strategy_philosophy, t, theme_label, tier_label, to_hant,
 )
 from invest_agent.agent import InvestAgent  # noqa: E402
+from invest_agent.factors import custom as custom_factors  # noqa: E402
 from invest_agent.integrations import factor_forge as forge_bridge  # noqa: E402
 from invest_agent.integrations import kairos as kairos_bridge  # noqa: E402
 from invest_agent.integrations import kairos_strategies as kairos_lab  # noqa: E402
@@ -980,6 +981,59 @@ with st.expander(t("ff.title", lang)):
                         st.caption(t("ff.import_note", lang))
                     except Exception as _ffe:  # noqa: BLE001
                         st.warning(t("ff.error", lang, err=_ffe))
+
+with st.expander(t("custom.title", lang)):
+    st.caption(t("custom.intro", lang))
+    if not custom_factors.forged_records():
+        st.info(t("custom.none", lang))
+    else:
+        _cp = st.session_state.get("atlas_custom_factors") or custom_factors.load_cached()
+        if st.button(t("custom.run", lang), key="custom_factor_btn"):
+            with st.spinner(t("custom.spinner", lang)):
+                try:
+                    _cp = custom_factors.compute(provider_name=provider, force=True)
+                    st.session_state["atlas_custom_factors"] = _cp
+                except Exception as _ce:  # noqa: BLE001
+                    st.warning(t("ff.error", lang, err=_ce))
+                    _cp = None
+        if _cp and _cp.get("available"):
+            st.caption(t("custom.meta", lang, ts=_cp.get("generated_at", "—"),
+                         n=_cp.get("n_factors", 0),
+                         months=_cp.get("recent_months", 6)))
+            _frows = []
+            for _f in _cp.get("factors", []):
+                if not _f.get("available"):
+                    continue
+                _frows.append({
+                    t("custom.col_factor", lang): _f.get("name", ""),
+                    t("custom.col_ic", lang): f"{_f['mean_ic']:+.3f}",
+                    t("custom.col_icir", lang): f"{_f['icir']:+.2f}",
+                    t("custom.col_t", lang): f"{_f['t_stat']:+.2f}",
+                    t("custom.col_weight", lang): f"{_f['weight']:.3f}",
+                    t("custom.col_match", lang):
+                        "—" if _f.get("direction_match") is None
+                        else ("✅" if _f["direction_match"] else "❌"),
+                })
+            if _frows:
+                st.markdown(f"**{t('custom.factors', lang)}**")
+                st.dataframe(_frows, hide_index=True, use_container_width=True)
+            from invest_agent.data.universe import build_universe as _bu  # noqa: E402
+            _names = {a.id: asset_name(a, lang) for a in _bu()}
+            _top = _cp.get("ranked", [])[:8]
+            _bottom = list(reversed(_cp.get("ranked", [])[-8:]))
+            _c1, _c2 = st.columns(2)
+            with _c1:
+                st.markdown(f"**{t('custom.top', lang)}**")
+                st.dataframe([{t("custom.asset", lang): _names.get(r["asset"], r["asset"]),
+                              t("custom.score", lang): f"{r['score']:+.3f}"}
+                             for r in _top], hide_index=True, use_container_width=True)
+            with _c2:
+                st.markdown(f"**{t('custom.bottom', lang)}**")
+                st.dataframe([{t("custom.asset", lang): _names.get(r["asset"], r["asset"]),
+                              t("custom.score", lang): f"{r['score']:+.3f}"}
+                             for r in _bottom], hide_index=True, use_container_width=True)
+        elif _cp:
+            st.caption(t("custom.not_ready", lang, reason=_cp.get("reason", "—")))
 
 with st.expander(t("factor.evo", lang), expanded=False):
     from invest_agent.factors.factor_evolution import (  # noqa: E402

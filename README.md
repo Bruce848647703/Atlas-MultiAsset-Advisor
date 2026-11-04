@@ -59,7 +59,7 @@ optimizer level, double-checked at the report level.
 
 Key principle: **the quant core is fully deterministic** (plans work with no LLM —
 easy to unit-test and generate training data). **The LLM is the conversational
-interface**, driving the core through **21 tools**:
+interface**, driving the core through **22 tools**:
 
 | Tool | Purpose |
 |---|---|
@@ -83,6 +83,7 @@ interface**, driving the core through **21 tools**:
 | `generate_charts` | 4 charts: allocation donut, risk–return map, equity+drawdown, goal projection |
 | `get_kairos_context` | Optional Kairos ecosystem context: sibling package status, real ETF coverage, VaR/ES risk overlay, research findings |
 | `factor_forge_from_text` | Report brief → structured factor + executable code + sample validation; optionally write into the Atlas factor store |
+| `screen_assets_by_custom_factors` | Cross-sectional composite score from forged close-based factors (IC/direction weighted) |
 | `explain_product` | Product risk education (risk first, return second) |
 
 ### Kairos Ecosystem Integration ★ (`integrations/kairos.py`)
@@ -155,10 +156,17 @@ and validates it on sample data. Atlas wraps the pipeline end to end:
   python scripts/factor_forge_import.py --file brief.txt --import --evaluate
   python scripts/factor_forge_import.py --pdf report.pdf --index 0 --import
   ```
-- Stored records keep `formula`, `direction`, `rationale` and the generated
-  `code`; `get_factor_knowledge` searches the store as well as the external
-  catalog. Auto-detects `../factor-forge` or `FACTOR_FORGE_ROOT`; absent →
-  graceful "not available".
+- Stored records keep `formula`, `direction`, `rationale`, generated `code` and
+  `meta` (operator/variables); `get_factor_knowledge` searches the store as well
+  as the external catalog.
+- **Custom factor composite**: the dashboard's *Custom factor scores* panel
+  evaluates every forged close-based factor on the Atlas panel, converts each to
+  a cross-sectional z-score, signs it by declared direction (or measured IC),
+  weights by |IC|, and averages the latest months into a per-asset score. The
+  LLM can read the same pack via `screen_assets_by_custom_factors` (22nd tool).
+  Research evidence only; not fed to the optimizer.
+- Auto-detects `../factor-forge` or `FACTOR_FORGE_ROOT`; absent → graceful
+  "not available".
 
 ### LLM Safety Boundary ★ (`harness.py` + `safety.py`)
 
@@ -364,7 +372,7 @@ pip install -r requirements.txt          # numpy/pandas/scipy/matplotlib/openai/
 
 make demo        # offline demo: mass / affluent / HNW → examples/demo_outputs/
 make lint        # ruff static checks (pip install -r requirements-dev.txt)
-make test        # unit + integration tests (188)
+make test        # unit + integration tests (191)
 make eval        # compliance gate (weight legality / caps / disclaimer / segment access)
 make sft         # generate 400 SFT conversations → training/sft_data/train.jsonl
 
@@ -460,7 +468,7 @@ invest_agent/
   portfolio/      # metrics / optimizer(MV+maxSharpe+minVol+riskParity) /
                   #   backtest(walk-forward) / tactical(momentum+trend gate)
   data/           # base / synthetic / akshare / kairos / universe (26 assets)
-  tools/          # 21 tools exposed to the LLM
+  tools/          # 22 tools exposed to the LLM
   charts.py, report.py, cli.py
 config/           # assets.yaml, risk_profiles.yaml, agent.yaml
 integrations/kairos_strategies.py  # ★ 106-strategy lab / cached leaderboard
@@ -470,7 +478,7 @@ scripts/factor_forge_import.py     # CLI: report brief -> Factor JSON/code -> st
 training/         # README / generate_sft_data.py / build_real_dataset.py /
                   # eval/(compliance + requirement benchmark) / finetune/
 examples/factor_library_sample/  # factor-library sample (full lib: ATLAS_FACTOR_DIR)
-tests/            # 188 tests (offline, synthetic provider)
+tests/            # 191 tests (offline, synthetic provider)
 .streamlit/config.toml + dashboard/style.py  # Jane Street-style light theme
 dashboard/i18n.py  # zh-Hans / en / zh-Hant UI catalog + entity labels
 .github/workflows/ci.yml  # GitHub Actions: lint + tests (3.10/3.12/3.13) + gates

@@ -128,15 +128,10 @@ _OPERATOR_FIELDS = {
 }
 
 
-def evaluate_on_atlas(factor: Dict[str, Any], code: str,
-                      provider_name: str = "synthetic",
-                      n_months: int = 120) -> Dict[str, Any]:
-    """Cross-sectional IC of a forged factor on the Atlas monthly asset pool.
-
-    Only factors whose inputs are available in Atlas (currently ``close``)
-    can be evaluated. The generated function is executed on cumulative price
-    proxies; forward 1-month returns are used for rank IC.
-    """
+def factor_panel_on_atlas(factor: Dict[str, Any], code: str,
+                          provider_name: str = "synthetic",
+                          n_months: int = 120) -> Dict[str, Any]:
+    """Execute a forged factor on the Atlas monthly panel and return the panel."""
     if not factor or not code:
         return {"available": False, "reason": "missing factor/code"}
     op = str(factor.get("operator", ""))
@@ -154,9 +149,8 @@ def evaluate_on_atlas(factor: Dict[str, Any], code: str,
 
     try:
         import importlib.util
-        import numpy as np
+
         import pandas as pd
-        from scipy.stats import spearmanr
 
         from ..data.base import get_provider
         from ..data.universe import asset_ids, build_universe
@@ -183,9 +177,36 @@ def evaluate_on_atlas(factor: Dict[str, Any], code: str,
                     continue
         if not cols:
             return {"available": False, "reason": "generated factor produced no series"}
-        fac = pd.DataFrame(cols)
-        fwd = returns.shift(-1)
+        return {
+            "available": True,
+            "panel": pd.DataFrame(cols),
+            "returns": returns,
+            "fields": sorted(fields),
+            "provider": provider_name,
+        }
+    except Exception as exc:  # noqa: BLE001
+        return {"available": False, "reason": f"factor execution failed: {exc}"}
 
+
+def evaluate_on_atlas(factor: Dict[str, Any], code: str,
+                      provider_name: str = "synthetic",
+                      n_months: int = 120) -> Dict[str, Any]:
+    """Cross-sectional IC of a forged factor on the Atlas monthly asset pool.
+
+    Only factors whose inputs are available in Atlas (currently ``close``)
+    can be evaluated. The generated function is executed on cumulative price
+    proxies; forward 1-month returns are used for rank IC.
+    """
+    base = factor_panel_on_atlas(factor, code, provider_name=provider_name,
+                                 n_months=n_months)
+    if not base.get("available"):
+        return base
+    try:
+        import numpy as np
+        from scipy.stats import spearmanr
+
+        fac = base["panel"]
+        fwd = base["returns"].shift(-1)
         ics = []
         for t in fac.index[:-1]:
             x = fac.loc[t].replace([np.inf, -np.inf], np.nan).dropna()
@@ -217,7 +238,7 @@ def evaluate_on_atlas(factor: Dict[str, Any], code: str,
             "positive_rate": round(float((arr > 0).mean()), 4),
             "direction": direction,
             "direction_match": (None if direction == 0 else bool(mean_ic * direction > 0)),
-            "fields": sorted(fields),
+            "fields": base["fields"],
         }
     except Exception as exc:  # noqa: BLE001
         return {"available": False, "reason": f"evaluation failed: {exc}"}
@@ -245,6 +266,11 @@ def import_factor(factor: Dict[str, Any], code: str, source: str = "",
         direction=int(factor.get("direction", 0) or 0),
         rationale=rationale[:500],
         code=code,
+        meta={
+            "operator": factor.get("operator", ""),
+            "variables": factor.get("variables", []),
+            "direction_note": factor.get("direction_note", ""),
+        },
         overwrite=overwrite,
     )
     return {"record": record, "name": name}
