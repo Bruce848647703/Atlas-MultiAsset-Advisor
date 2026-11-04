@@ -135,6 +135,31 @@ python scripts/kairos_strategy_lab.py --strategy low_beta_timing
 python scripts/kairos_strategy_lab.py --channel trend --top 30
 ```
 
+### Factor Forge Integration ★ (`integrations/factor_forge.py`)
+
+The sibling **factor-forge** project turns a broker-report factor brief
+(natural language + formula) into structured JSON, compiles executable Python,
+and validates it on sample data. Atlas wraps the pipeline end to end:
+
+- **Dashboard panel**: paste a brief (or upload a PDF with PyMuPDF) → preview
+  the structured factor, required data fields, generated code and validation →
+  import into the Atlas factor store with `source=factor_forge`.
+- **Atlas panel validation**: for `close`-based factors (momentum/reversal/
+  volatility), run cross-sectional RankIC / ICIR / t-stat / IC>0 share on the
+  monthly multi-asset panel; factors needing daily `turnover/vwap` report a
+  clear "not available" reason.
+- **LLM tool**: `factor_forge_from_text` (21st tool).
+- **CLI**:
+  ```bash
+  python scripts/factor_forge_import.py --file brief.txt --source "某券商 2026"
+  python scripts/factor_forge_import.py --file brief.txt --import --evaluate
+  python scripts/factor_forge_import.py --pdf report.pdf --index 0 --import
+  ```
+- Stored records keep `formula`, `direction`, `rationale` and the generated
+  `code`; `get_factor_knowledge` searches the store as well as the external
+  catalog. Auto-detects `../factor-forge` or `FACTOR_FORGE_ROOT`; absent →
+  graceful "not available".
+
 ### LLM Safety Boundary ★ (`harness.py` + `safety.py`)
 
 Tool traffic is treated as untrusted in both directions:
@@ -339,7 +364,7 @@ pip install -r requirements.txt          # numpy/pandas/scipy/matplotlib/openai/
 
 make demo        # offline demo: mass / affluent / HNW → examples/demo_outputs/
 make lint        # ruff static checks (pip install -r requirements-dev.txt)
-make test        # unit + integration tests (185)
+make test        # unit + integration tests (188)
 make eval        # compliance gate (weight legality / caps / disclaimer / segment access)
 make sft         # generate 400 SFT conversations → training/sft_data/train.jsonl
 
@@ -435,7 +460,7 @@ invest_agent/
   portfolio/      # metrics / optimizer(MV+maxSharpe+minVol+riskParity) /
                   #   backtest(walk-forward) / tactical(momentum+trend gate)
   data/           # base / synthetic / akshare / kairos / universe (26 assets)
-  tools/          # 20 tools exposed to the LLM
+  tools/          # 21 tools exposed to the LLM
   charts.py, report.py, cli.py
 config/           # assets.yaml, risk_profiles.yaml, agent.yaml
 integrations/kairos_strategies.py  # ★ 106-strategy lab / cached leaderboard
@@ -445,7 +470,7 @@ scripts/factor_forge_import.py     # CLI: report brief -> Factor JSON/code -> st
 training/         # README / generate_sft_data.py / build_real_dataset.py /
                   # eval/(compliance + requirement benchmark) / finetune/
 examples/factor_library_sample/  # factor-library sample (full lib: ATLAS_FACTOR_DIR)
-tests/            # 185 tests (offline, synthetic provider)
+tests/            # 188 tests (offline, synthetic provider)
 .streamlit/config.toml + dashboard/style.py  # Jane Street-style light theme
 dashboard/i18n.py  # zh-Hans / en / zh-Hant UI catalog + entity labels
 .github/workflows/ci.yml  # GitHub Actions: lint + tests (3.10/3.12/3.13) + gates

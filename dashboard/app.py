@@ -16,6 +16,7 @@ import hmac
 import json
 import os
 import sys
+import tempfile
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _ROOT)
@@ -864,6 +865,48 @@ with st.expander(t("ff.title", lang)):
             _ff_source = st.text_input(t("ff.source", lang), key="ff_source")
         with _ff_c2:
             _ff_name = st.text_input(t("ff.name", lang), key="ff_name")
+
+        _ff_pdf = st.file_uploader(t("ff.pdf", lang), type=["pdf"], key="ff_pdf")
+        if _ff_pdf is not None and st.button(t("ff.pdf_parse", lang), key="ff_pdf_btn"):
+            with st.spinner(t("ff.pdf_spinner", lang)):
+                _pdf_path = None
+                try:
+                    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as _tmp:
+                        _tmp.write(_ff_pdf.getvalue())
+                        _pdf_path = _tmp.name
+                    st.session_state["atlas_forge_pdf"] = forge_bridge.forge_pdf(
+                        _pdf_path, source=_ff_source or _ff_pdf.name, max_briefs=3)
+                except Exception as _pfe:  # noqa: BLE001
+                    st.session_state["atlas_forge_pdf"] = {"available": False,
+                                                           "reason": str(_pfe)}
+                finally:
+                    if _pdf_path and os.path.exists(_pdf_path):
+                        os.unlink(_pdf_path)
+        _pdfres = st.session_state.get("atlas_forge_pdf")
+        if _pdfres:
+            if not _pdfres.get("available"):
+                st.warning(t("ff.error", lang, err=_pdfres.get("reason", "—")))
+            else:
+                _briefs = _pdfres.get("briefs") or []
+                if not _briefs:
+                    st.info(t("ff.pdf_none", lang))
+                else:
+                    st.markdown(f"**{t('ff.pdf_briefs', lang)}**")
+                    _brows = [{
+                        "name": b["factor"].get("name", ""),
+                        t("ff.operator", lang): b["factor"].get("operator", ""),
+                        "score": b.get("score", 0),
+                        "anchor": b.get("anchor", ""),
+                    } for b in _briefs]
+                    st.dataframe(_brows, hide_index=True, use_container_width=True)
+                    _bidx = st.selectbox(
+                        t("ff.pdf_use", lang), range(len(_briefs)),
+                        format_func=lambda i: f"{_briefs[i]['factor'].get('name', '')} "
+                                              f"({_briefs[i].get('score', 0)})",
+                        key="ff_pdf_pick")
+                    if st.button(t("ff.pdf_use", lang), key="ff_pdf_use_btn"):
+                        st.session_state["atlas_forge"] = _briefs[_bidx]
+
         if st.button(t("ff.forge", lang), key="ff_forge_btn"):
             with st.spinner(t("ff.spinner", lang)):
                 try:
@@ -895,6 +938,27 @@ with st.expander(t("ff.title", lang)):
                 _status = "PASS" if _val.get("ok") else "WARN"
                 st.caption(t("ff.validation", lang, status=_status,
                              msg=_val.get("message", "")))
+            if st.button(t("ff.evaluate", lang), key="ff_eval_btn"):
+                with st.spinner(t("ff.eval_spinner", lang)):
+                    st.session_state["atlas_forge_eval"] = forge_bridge.evaluate_on_atlas(
+                        _fac, _ff.get("code", ""), provider_name=provider)
+            _ev = st.session_state.get("atlas_forge_eval")
+            if _ev:
+                if not _ev.get("available"):
+                    st.caption(t("ff.eval_unavailable", lang,
+                                 reason=_ev.get("reason", "—")))
+                else:
+                    st.markdown(f"**{t('ff.eval_title', lang)}**")
+                    st.dataframe([{
+                        t("ff.ic", lang): f"{_ev['mean_ic']:+.3f}",
+                        t("ff.icir", lang): f"{_ev['icir']:+.2f}",
+                        t("ff.tstat", lang): f"{_ev['t_stat']:+.2f}",
+                        t("ff.positive", lang): f"{_ev['positive_rate']:.1%}",
+                        t("ff.periods", lang): _ev["n_periods"],
+                        t("ff.direction_match", lang):
+                            "—" if _ev.get("direction_match") is None
+                            else ("✅" if _ev["direction_match"] else "❌"),
+                    }], hide_index=True, use_container_width=True)
             if lang != "en":
                 _json_txt = json.dumps(_fac, ensure_ascii=False, indent=1)
                 if lang == "zh-Hant":
