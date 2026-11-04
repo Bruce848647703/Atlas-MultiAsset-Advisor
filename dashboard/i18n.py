@@ -367,6 +367,32 @@ S = {
     "ff.direction_match": ("方向一致", "Direction match"),
     "ff.eval_unavailable": ("无法在 Atlas 面板验证：{reason}",
                             "Cannot validate on the Atlas panel: {reason}"),
+    # Custom forged-factor composite
+    "custom.title": ("自定义因子评分（Factor Forge）", "Custom factor scores (Factor Forge)"),
+    "custom.intro": ("把已写入因子库、可通过 Atlas 面板验证的 Factor Forge 因子做成截面 z-score，"
+                     "按方向与 |IC| 加权，输出最近几个月的资产综合评分。仅作研究证据，不自动进入优化器。",
+                     "Turns forged Factor Forge factors that can be evaluated on the Atlas panel into "
+                     "cross-sectional z-scores, signs/weights them by direction and |IC|, and averages "
+                     "the latest months into an asset score. Research evidence only; not fed to the optimizer."),
+    "custom.run": ("计算 / 刷新自定义因子评分", "Compute / refresh custom scores"),
+    "custom.spinner": ("在 Atlas 面板上计算自定义因子 IC 与综合评分...",
+                       "Computing forged-factor IC and composite scores on the Atlas panel..."),
+    "custom.none": ("因子库中还没有可执行的 Factor Forge 因子。先在 Factor Forge 面板生成并写入。",
+                    "No executable Factor Forge factors in the store yet. Forge and import one first."),
+    "custom.not_ready": ("暂无可评分结果：{reason}", "No scores yet: {reason}"),
+    "custom.meta": ("生成于 {ts} · {n} 个可用因子 · 近期 {months} 个月均值",
+                    "Generated {ts} · {n} usable factors · latest {months} months"),
+    "custom.col_factor": ("因子", "Factor"),
+    "custom.col_ic": ("平均 IC", "Mean IC"),
+    "custom.col_icir": ("ICIR", "ICIR"),
+    "custom.col_t": ("t 值", "t-stat"),
+    "custom.col_weight": ("权重", "Weight"),
+    "custom.col_match": ("方向一致", "Direction match"),
+    "custom.factors": ("参与评分的因子", "Factors in the composite"),
+    "custom.top": ("综合评分最高", "Top assets"),
+    "custom.bottom": ("综合评分最低", "Bottom assets"),
+    "custom.asset": ("资产", "Asset"),
+    "custom.score": ("综合分", "Score"),
     # report
     "report.title": ("完整报告", "Full report"),
     "report.zh_only": ("完整 Markdown 报告目前由中文分析层生成；切换英文时此处不展示，"

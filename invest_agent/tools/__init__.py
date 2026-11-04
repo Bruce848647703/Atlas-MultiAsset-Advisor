@@ -475,6 +475,15 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
         except Exception as e:  # noqa: BLE001
             return {"error": f"factor forge failed: {e}"}
 
+    def screen_custom_factors(args: Dict[str, Any]) -> Dict[str, Any]:
+        """Factor Forge 自定义因子的截面综合评分。"""
+        try:
+            from ..factors import custom
+            return custom.summary(provider_name=ctx.provider_name,
+                                  limit=int(args.get("limit", 8)))
+        except Exception as e:  # noqa: BLE001
+            return {"error": f"custom factor scores unavailable: {e}"}
+
     def get_kairos_context(args: Dict[str, Any]) -> Dict[str, Any]:
         """可选 Kairos 生态上下文: 兄弟仓库状态/真实ETF数据/研究结论/风险叠加。"""
         try:
@@ -601,6 +610,10 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
            "import": {"type": "boolean", "description": "是否写入因子库, 默认 true"},
            "overwrite": {"type": "boolean", "description": "同名因子是否覆盖"}},
           ["text"], factor_forge_from_text),
+        T("screen_assets_by_custom_factors",
+          "用 Factor Forge 写入的自定义因子做截面综合评分：对可通过 Atlas 面板验证的因子按方向/IC 加权，"
+          "返回因子 IC 明细与资产评分排序。仅作研究证据。",
+          {"limit": {"type": "integer"}}, [], screen_custom_factors),
         T("get_kairos_context",
           "Kairos 生态联动: 返回同级 kairos-* 仓库状态、真实ETF数据覆盖、"
           "kairos-risk 的 VaR/ES/风险分解、硅策略研究结论。用于把 Atlas 建议与"
