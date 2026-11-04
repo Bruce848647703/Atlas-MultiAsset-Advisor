@@ -48,10 +48,10 @@ integrations:
     root: ""
 
 # Factor knowledge base (JSON library extracted from research documents).
-# Empty disables the external library; the advisor degrades gracefully.
-# Override without editing this file: export ATLAS_FACTOR_DIR=/path/to/data/json
+# Ships with a small bundled sample; point this at your full library, or set
+# ATLAS_FACTOR_DIR. Relative paths are resolved against the project root.
 factors:
-  data_dir: ""
+  data_dir: "examples/factor_library_sample"
   screen_weight: 0.35        # blend of factor screen vs expected return in
                              # satellite allocation preference
 

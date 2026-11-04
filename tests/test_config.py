@@ -3,9 +3,9 @@ import yaml
 from invest_agent import config
 
 
-def test_factor_dir_defaults_to_disabled():
+def test_factor_dir_defaults_to_bundled_sample():
     cfg = config.load_config(force=True)
-    assert cfg["factors"]["data_dir"] == ""
+    assert cfg["factors"]["data_dir"].endswith("examples/factor_library_sample")
 
 
 def test_factor_dir_can_be_overridden_by_env(monkeypatch, tmp_path):

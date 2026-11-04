@@ -9,6 +9,8 @@ Two layers:
     screening score per asset.
 """
 
-from .loader import FactorCatalog, load_catalog, default_catalog  # noqa: F401
+from .loader import (  # noqa: F401
+    FactorCatalog, default_catalog, default_data_dir, load_catalog,
+)
 from .lens import compute_factor_scores, screen_universe  # noqa: F401
 from .enrich import enrich_universe  # noqa: F401
