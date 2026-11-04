@@ -59,7 +59,7 @@ optimizer level, double-checked at the report level.
 
 Key principle: **the quant core is fully deterministic** (plans work with no LLM —
 easy to unit-test and generate training data). **The LLM is the conversational
-interface**, driving the core through **20 tools**:
+interface**, driving the core through **21 tools**:
 
 | Tool | Purpose |
 |---|---|
@@ -82,6 +82,7 @@ interface**, driving the core through **20 tools**:
 | `screen_assets_by_factors` | Score/rank the asset pool via the factor lens (momentum/reversal/low-vol/drawdown) |
 | `generate_charts` | 4 charts: allocation donut, risk–return map, equity+drawdown, goal projection |
 | `get_kairos_context` | Optional Kairos ecosystem context: sibling package status, real ETF coverage, VaR/ES risk overlay, research findings |
+| `factor_forge_from_text` | Report brief → structured factor + executable code + sample validation; optionally write into the Atlas factor store |
 | `explain_product` | Product risk education (risk first, return second) |
 
 ### Kairos Ecosystem Integration ★ (`integrations/kairos.py`)
@@ -338,7 +339,7 @@ pip install -r requirements.txt          # numpy/pandas/scipy/matplotlib/openai/
 
 make demo        # offline demo: mass / affluent / HNW → examples/demo_outputs/
 make lint        # ruff static checks (pip install -r requirements-dev.txt)
-make test        # unit + integration tests (181)
+make test        # unit + integration tests (185)
 make eval        # compliance gate (weight legality / caps / disclaimer / segment access)
 make sft         # generate 400 SFT conversations → training/sft_data/train.jsonl
 
@@ -427,7 +428,7 @@ invest_agent/
   global_indices.py # ★ global index board: dual-source (Tencent+EM) + cache + fallback
   intel.py        # ★ market intel: news fetching + topic tagging + cache
   safety.py       # ★ untrusted-text hygiene / injection-pattern neutralisation
-  integrations/   # ★ kairos.py: optional sibling-suite discovery/data/risk/research
+  integrations/   # ★ kairos.py / kairos_strategies.py / factor_forge.py
   factors/        # ★ loader / lens / enrich(live factors) / factor_store /
                   #   factor_evolution / report_pdf_miner
   advisor.py      # strategy-driven allocation pipeline
@@ -440,10 +441,11 @@ config/           # assets.yaml, risk_profiles.yaml, agent.yaml
 integrations/kairos_strategies.py  # ★ 106-strategy lab / cached leaderboard
 scripts/run_demo.py         dashboard/app.py (streamlit)
 scripts/kairos_strategy_lab.py     # CLI: strategy leaderboard / single curve
+scripts/factor_forge_import.py     # CLI: report brief -> Factor JSON/code -> store
 training/         # README / generate_sft_data.py / build_real_dataset.py /
                   # eval/(compliance + requirement benchmark) / finetune/
 examples/factor_library_sample/  # factor-library sample (full lib: ATLAS_FACTOR_DIR)
-tests/            # 181 tests (offline, synthetic provider)
+tests/            # 185 tests (offline, synthetic provider)
 .streamlit/config.toml + dashboard/style.py  # Jane Street-style light theme
 dashboard/i18n.py  # zh-Hans / en / zh-Hant UI catalog + entity labels
 .github/workflows/ci.yml  # GitHub Actions: lint + tests (3.10/3.12/3.13) + gates

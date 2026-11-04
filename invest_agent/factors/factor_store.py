@@ -130,7 +130,7 @@ def save_store(factors: List[Dict]) -> None:
 def _upsert(factors: List[Dict], name: str, category: str, source: str, *,
             name_cn: str = "", formula: str = "", direction: int = 0,
             ic: Optional[float] = None, rationale: str = "",
-            overwrite: bool = False) -> Dict:
+            code: str = "", overwrite: bool = False) -> Dict:
     idx = next((i for i, f in enumerate(factors) if f.get("name") == name), None)
     rec = {
         "name": name,
@@ -142,6 +142,7 @@ def _upsert(factors: List[Dict], name: str, category: str, source: str, *,
         "added_date": datetime.now().strftime("%Y-%m-%d"),
         "ic": ic,
         "rationale": rationale,
+        "code": code,                         # optional executable implementation
     }
     if idx is not None:
         if overwrite:
@@ -149,9 +150,11 @@ def _upsert(factors: List[Dict], name: str, category: str, source: str, *,
             rec["ic"] = ic if ic is not None else factors[idx].get("ic")
             factors[idx] = rec
         else:
-            # keep existing, just refresh IC if provided
+            # keep existing, just refresh IC/code if provided
             if ic is not None:
                 factors[idx]["ic"] = ic
+            if code:
+                factors[idx]["code"] = code
             rec = factors[idx]
     else:
         factors.append(rec)
@@ -161,13 +164,13 @@ def _upsert(factors: List[Dict], name: str, category: str, source: str, *,
 def add_factor(name: str, category: str, source: str, *,
                name_cn: str = "", formula: str = "", direction: int = 0,
                ic: Optional[float] = None, rationale: str = "",
-               overwrite: bool = False) -> Dict:
+               code: str = "", overwrite: bool = False) -> Dict:
     """Add (or update) one factor; dedupes by name. Returns the record."""
     with _store_lock():
         factors = _read_store()
         rec = _upsert(factors, name, category, source,
                       name_cn=name_cn, formula=formula, direction=direction,
-                      ic=ic, rationale=rationale, overwrite=overwrite)
+                      ic=ic, rationale=rationale, code=code, overwrite=overwrite)
         _write_store(factors)
         return rec
 

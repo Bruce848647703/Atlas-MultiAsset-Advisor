@@ -372,8 +372,6 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
 
     def get_factor_knowledge(args: Dict[str, Any]) -> Dict[str, Any]:
         cat = default_catalog()
-        if not cat.factors:
-            return {"error": "factor library not loaded (data_dir missing/empty)"}
         query = str(args.get("query", "")).strip()
         category = str(args.get("category", "")).strip()
         limit = int(args.get("limit", 6))
@@ -388,16 +386,44 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
                 "categories": cat.category_summary()[:15],
                 "hint": "pass query=... or category=... to fetch factor details",
             }
+        matched = [
+            {
+                "name": f.name, "name_cn": f.name_cn, "category": f.category,
+                "direction": {1: "与未来收益正相关", -1: "与未来收益负相关", 0: "方向未明"}[f.direction],
+                "is_high_freq": f.is_high_freq,
+                "rationale": sanitize_untrusted_text(f.rationale or "", 400),
+                "code": (getattr(f, "code", "") or "")[:4000],
+            }
+            for f in hits
+        ]
+        # Forged/learned factors live in the project store, not the external
+        # catalog; include matching store records too.
+        try:
+            from ..factors.factor_store import load_store
+            seen = {m["name"] for m in matched}
+            for rec in load_store():
+                if rec.get("name") in seen:
+                    continue
+                hay = f"{rec.get('name','')} {rec.get('name_cn','')} {rec.get('category','')}".lower()
+                if query and query.lower() not in hay:
+                    continue
+                if category and category not in str(rec.get("category", "")):
+                    continue
+                matched.append({
+                    "name": rec.get("name", ""),
+                    "name_cn": rec.get("name_cn", ""),
+                    "category": rec.get("category", ""),
+                    "direction": {1: "与未来收益正相关", -1: "与未来收益负相关", 0: "方向未明"}.get(
+                        int(rec.get("direction", 0) or 0), "方向未明"),
+                    "is_high_freq": False,
+                    "rationale": sanitize_untrusted_text(rec.get("rationale", ""), 400),
+                    "code": (rec.get("code", "") or "")[:4000],
+                    "source": rec.get("source", ""),
+                })
+        except Exception:  # noqa: BLE001 - store lookup is optional
+            pass
         return {
-            "matched": [
-                {
-                    "name": f.name, "name_cn": f.name_cn, "category": f.category,
-                    "direction": {1: "与未来收益正相关", -1: "与未来收益负相关", 0: "方向未明"}[f.direction],
-                    "is_high_freq": f.is_high_freq,
-                    "rationale": sanitize_untrusted_text(f.rationale or "", 400),
-                }
-                for f in hits
-            ],
+            "matched": matched[:max(limit, 6)],
             "note": "高频因子/估值/财务类因子需要日频个股数据，不能直接用于本资产池。",
         }
 
@@ -429,6 +455,25 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
         paths = render_all(ctx.plan, out_dir)
         ctx.output_dir = out_dir
         return {"charts": {k: v for k, v in paths.items() if v}}
+
+    def factor_forge_from_text(args: Dict[str, Any]) -> Dict[str, Any]:
+        """研报因子简述 -> Factor JSON + 可执行代码 (+ 写入 Atlas 因子库)。"""
+        try:
+            from ..integrations import factor_forge
+            text = str(args.get("text", "") or "").strip()
+            if not text:
+                return {"error": "text is required"}
+            do_import = bool(args.get("import", True))
+            source = str(args.get("source", "") or "")
+            name = str(args.get("name", "") or "")
+            if do_import:
+                out = factor_forge.import_to_atlas(text, source=source, name=name,
+                                                   overwrite=bool(args.get("overwrite", False)))
+            else:
+                out = factor_forge.forge(text, source=source, name=name, validate=True)
+            return out
+        except Exception as e:  # noqa: BLE001
+            return {"error": f"factor forge failed: {e}"}
 
     def get_kairos_context(args: Dict[str, Any]) -> Dict[str, Any]:
         """可选 Kairos 生态上下文: 兄弟仓库状态/真实ETF数据/研究结论/风险叠加。"""
@@ -546,6 +591,16 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
         T("generate_charts",
           "为当前方案生成图表(配置环图/风险收益地图/净值曲线/目标投射)，返回文件路径。",
           {"out_dir": {"type": "string"}}, [], generate_charts),
+        T("factor_forge_from_text",
+          "把券商研报的因子简述(自然语言+公式)解析为结构化因子(名称/变量映射/方向/公式)，"
+          "生成可执行 Python 代码并在样本数据上验证；默认写入 Atlas 因子库(source=factor_forge)。"
+          "适合用户粘贴研报段落或要求'把这个因子加入因子库'时使用。",
+          {"text": {"type": "string", "description": "研报因子简述全文"},
+           "source": {"type": "string", "description": "来源(研报/机构/日期)"},
+           "name": {"type": "string", "description": "可选因子代码名"},
+           "import": {"type": "boolean", "description": "是否写入因子库, 默认 true"},
+           "overwrite": {"type": "boolean", "description": "同名因子是否覆盖"}},
+          ["text"], factor_forge_from_text),
         T("get_kairos_context",
           "Kairos 生态联动: 返回同级 kairos-* 仓库状态、真实ETF数据覆盖、"
           "kairos-risk 的 VaR/ES/风险分解、硅策略研究结论。用于把 Atlas 建议与"
