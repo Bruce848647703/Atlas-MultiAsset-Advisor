@@ -24,6 +24,9 @@ from ..risk_profiler import profile_from_answers, QUESTIONS
 from ..safety import UNTRUSTED_NOTICE, sanitize_untrusted_text
 from ..strategy import STRATEGY_MENU, menu_for_tier
 from ..timing import views_from_args, extract_timing_views
+from ..validation import (
+    InputValidationError, finite_number, integer, normalize_answers, text_value,
+)
 from ..macro_advice import generate_macro_advice
 from ..geopolitics import assess_global_situation, fetch_global_news, situation_digest
 from ..global_base import (AssetProfile, recommend_bases, base_digest,
@@ -89,15 +92,22 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
         return {"__ask_user__": q}
 
     def assess_risk_profile(args: Dict[str, Any]) -> Dict[str, Any]:
-        answers = args.get("answers") or {}
-        answers = {int(k): int(v) for k, v in answers.items()}
-        capital = float(args.get("capital", ctx.profile.capital if ctx.profile else 0.0))
-        free_text = str(args.get("free_text", "") or "")
-        horizon = args.get("horizon_years")
+        try:
+            answers = normalize_answers(args.get("answers") or {}, QUESTIONS)
+            capital = finite_number(
+                args.get("capital", ctx.profile.capital if ctx.profile else 0.0),
+                "可投资本金 capital", minimum=0.0, maximum=1e12)
+            free_text = text_value(args.get("free_text", ""),
+                                   "风险态度 free_text", max_chars=4000)
+            horizon = args.get("horizon_years")
+            horizon = integer(horizon, "投资期限 horizon_years", minimum=1,
+                              maximum=50) if horizon is not None else None
+        except InputValidationError as exc:
+            return {"error": str(exc)}
         if not answers and not free_text:
             return {"error": "需要问卷答案(answers) 或 投资者原话(free_text)；可先用 ask_investor 收集。"}
         ctx.profile = profile_from_answers(answers, capital=capital, free_text=free_text,
-                                           horizon_years=int(horizon) if horizon else None)
+                                           horizon_years=horizon)
         # auto-extract a subjective timing view from the investor's words
         if free_text:
             v = extract_timing_views(free_text)
@@ -115,7 +125,11 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
         return summary
 
     def get_market_summary(args: Dict[str, Any]) -> Dict[str, Any]:
-        n_months = int(args.get("n_months", 120))
+        try:
+            n_months = integer(args.get("n_months", 120), "回看月数 n_months",
+                               minimum=12, maximum=600)
+        except InputValidationError as exc:
+            return {"error": str(exc)}
         provider = ctx.get_provider()
         if ctx.profile is not None:
             caps = accessible_classes(ctx.profile)
@@ -137,19 +151,30 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
     def build_investment_plan(args: Dict[str, Any]) -> Dict[str, Any]:
         if ctx.profile is None:
             return {"error": "必须先完成风险评估 (assess_risk_profile)。"}
-        if args.get("capital") is not None:
-            ctx.profile.capital = float(args["capital"])
-        provider = ctx.get_provider()
-        # allow an explicit timing override in this call, else use the stored view
-        call_view = views_from_args(args.get("timing")) or ctx.timing_view
-        plan = build_plan(
-            ctx.profile, provider,
-            monthly_contrib=float(args["monthly_contrib"]) if args.get("monthly_contrib") else None,
-            strategy_id=args.get("strategy_id"),
-            timing_view=call_view,
-            satellite_strategy=args.get("satellite_strategy"),
-            satellite_budget=float(args.get("satellite_budget", 0.0) or 0.0),
-        )
+        try:
+            if args.get("capital") is not None:
+                ctx.profile.capital = finite_number(
+                    args["capital"], "可投资本金 capital", minimum=1.0,
+                    maximum=1e12)
+            monthly = args.get("monthly_contrib")
+            monthly = finite_number(monthly, "每月定投 monthly_contrib",
+                                    minimum=0.0, maximum=1e9) \
+                if monthly not in (None, "") else None
+            satellite_budget = finite_number(
+                args.get("satellite_budget", 0.0) or 0.0,
+                "卫星仓位预算 satellite_budget", minimum=0.0, maximum=0.30)
+            call_view = views_from_args(args.get("timing")) or ctx.timing_view
+            provider = ctx.get_provider()
+            plan = build_plan(
+                ctx.profile, provider,
+                monthly_contrib=monthly,
+                strategy_id=args.get("strategy_id"),
+                timing_view=call_view,
+                satellite_strategy=args.get("satellite_strategy"),
+                satellite_budget=satellite_budget,
+            )
+        except (InputValidationError, ValueError) as exc:
+            return {"error": str(exc)}
         ctx.plan = plan
         return {
             "strategy": {
@@ -202,12 +227,20 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
         """Store a subjective market-timing view on the context. Accepts either
         free text ("看空A股，看多加密") or a dict {class: tilt in [-1,1]}.
         The view is applied to the next build_investment_plan."""
-        view = views_from_args(args.get("views") if "views" in args else args.get("text"))
+        try:
+            view = views_from_args(args.get("views") if "views" in args else args.get("text"))
+            if args.get("conviction") is not None:
+                conviction = finite_number(args["conviction"], "conviction",
+                                           minimum=0.0, maximum=1.0)
+            else:
+                conviction = None
+        except InputValidationError as exc:
+            return {"error": str(exc)}
         if view is None or view.is_empty():
             return {"error": "未能解析出择时观点；请给出方向(看多/看空)与标的类别，"
                              "或形如 {\"equity_cn\": -0.5, \"crypto\": 0.8} 的字典。"}
-        if args.get("conviction") is not None:
-            view.conviction = float(args["conviction"])
+        if conviction is not None:
+            view.conviction = conviction
         ctx.timing_view = view
         return {
             "stored": True,
@@ -221,9 +254,11 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
     def get_macro_advice(args: Dict[str, Any]) -> Dict[str, Any]:
         """大类资产配置建议(结合真实动量/估值/新闻情绪/宏观研判) + 行业风格细分。"""
         try:
+            months = integer(args.get("months", 60), "回看月数 months",
+                             minimum=12, maximum=600)
             adv = generate_macro_advice(
                 provider_name=ctx.provider_name,
-                months=int(args.get("months", 60)))
+                months=months)
             return adv
         except Exception as e:  # noqa: BLE001
             return {"error": f"macro advice unavailable: {e}"}
@@ -255,13 +290,20 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
         境外账户/规模)，列出全球适合的 base(境内/跨境通道/离岸)并打分排序，
         每类 base 标注摩擦(资本管制/税/汇兑/准入/合规)与理由。"""
         try:
-            tier = args.get("tier") or (ctx.profile.tier if ctx.profile else "C3")
+            tier = text_value(
+                args.get("tier") or (ctx.profile.tier if ctx.profile else "C3"),
+                "适当性等级 tier", max_chars=8)
+            overseas = finite_number(args.get("overseas_pct", 0.0),
+                                     "境外资产占比 overseas_pct",
+                                     minimum=0.0, maximum=100.0)
+            total_capital = finite_number(
+                args.get("capital", ctx.profile.capital if ctx.profile else 0.0),
+                "总资产 capital", minimum=1.0, maximum=1e12)
             ap = AssetProfile(
                 asset_types=list(args.get("asset_types", []) or []),
-                overseas_pct=float(args.get("overseas_pct", 0.0)),
+                overseas_pct=overseas,
                 overseas_accounts=list(args.get("overseas_accounts", ["none"]) or ["none"]),
-                total_capital=float(args.get("capital",
-                                             ctx.profile.capital if ctx.profile else 0.0)),
+                total_capital=total_capital,
                 crypto_held=bool(args.get("crypto_held", False)),
                 liquidity_need=str(args.get("liquidity_need", "medium")),
             )
@@ -302,6 +344,8 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
                 macro = {a["class"]: a["stance"] for a in madv.get("advice", [])}
             except Exception:  # noqa: BLE001
                 pass
+            n_analysts = integer(args.get("n", 5), "分析师数量 n",
+                                 minimum=1, maximum=30)
             cc = build_council({
                 "regime": regime,
                 "plan_classes": plan_classes,
@@ -309,7 +353,7 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
                 "strategy_tags": list(plan.strategy.tags),
                 "has_crypto": plan_classes.get("crypto", 0.0) > 1e-4,
                 "macro_stance": macro,
-            }, n=int(args.get("n", 5)))
+            }, n=n_analysts)
             # attach calibrated voice-weight provenance
             try:
                 from ..analyst_calibration import calibration_summary
@@ -332,12 +376,17 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
         if ctx.plan is None:
             return {"error": "请先生成配置方案 (build_investment_plan)。"}
         try:
+            overseas = finite_number(args.get("overseas_pct", 0.0),
+                                     "境外资产占比 overseas_pct",
+                                     minimum=0.0, maximum=100.0)
+            total_capital = finite_number(
+                args.get("capital", ctx.profile.capital if ctx.profile else 0.0),
+                "总资产 capital", minimum=1.0, maximum=1e12)
             ap = AssetProfile(
                 asset_types=list(args.get("asset_types", ["cash_deposit", "cn_fund"]) or []),
-                overseas_pct=float(args.get("overseas_pct", 0.0)),
+                overseas_pct=overseas,
                 overseas_accounts=list(args.get("overseas_accounts", ["none"]) or ["none"]),
-                total_capital=float(args.get("capital",
-                                             ctx.profile.capital if ctx.profile else 0.0)),
+                total_capital=total_capital,
                 crypto_held=bool(args.get("crypto_held", False)),
                 liquidity_need=str(args.get("liquidity_need", "medium")),
             )
@@ -360,8 +409,11 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
                         "hours_since_last": hours_since_last_run(),
                         "hint": "dry_run; pass run=true to evolve"}
             rep = run_cycle(provider_name=ctx.provider_name,
-                            months=int(args.get("months", 96)),
-                            ic_threshold=float(args.get("ic_threshold", 0.0)),
+                            months=integer(args.get("months", 96), "回看月数 months",
+                                           minimum=12, maximum=600),
+                            ic_threshold=finite_number(
+                                args.get("ic_threshold", 0.0), "IC 阈值",
+                                minimum=-1.0, maximum=1.0),
                             import_kb=bool(args.get("import_kb", True)),
                             collect_reports=bool(args.get("collect_reports", True)),
                             mine_pdfs=bool(args.get("mine_pdfs", True)))
@@ -372,9 +424,14 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
 
     def get_factor_knowledge(args: Dict[str, Any]) -> Dict[str, Any]:
         cat = default_catalog()
-        query = str(args.get("query", "")).strip()
-        category = str(args.get("category", "")).strip()
-        limit = int(args.get("limit", 6))
+        try:
+            query = text_value(args.get("query", ""), "查询词 query", max_chars=100)
+            category = text_value(args.get("category", ""), "因子类别 category",
+                                  max_chars=100)
+            limit = integer(args.get("limit", 6), "返回数量 limit",
+                            minimum=1, maximum=50)
+        except InputValidationError as exc:
+            return {"error": str(exc)}
         if category:
             hits = cat.by_category(category, limit)
         elif query:
@@ -428,17 +485,23 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
         }
 
     def screen_assets_by_factors(args: Dict[str, Any]) -> Dict[str, Any]:
+        try:
+            n_months = integer(args.get("n_months", 96), "回看月数 n_months",
+                               minimum=12, maximum=600)
+            topn = integer(args.get("top", 10), "返回数量 top",
+                           minimum=1, maximum=50)
+        except InputValidationError as exc:
+            return {"error": str(exc)}
         provider = ctx.get_provider()
         universe = build_universe()
         ids = [a.id for a in universe]
-        R = provider.get_monthly_returns(ids, int(args.get("n_months", 96)))
+        R = provider.get_monthly_returns(ids, n_months)
         try:
             from ..factors import enrich_universe
             enrichment = enrich_universe(universe)
         except Exception:  # noqa: BLE001 - live layer optional
             enrichment = None
         res = screen_universe(R[ids], universe, default_catalog(), enrichment=enrichment)
-        topn = int(args.get("top", 10))
         return {
             "top": res["ranked"][:topn],
             "bottom": res["ranked"][-3:],
@@ -460,12 +523,11 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
         """研报因子简述 -> Factor JSON + 可执行代码 (+ 写入 Atlas 因子库)。"""
         try:
             from ..integrations import factor_forge
-            text = str(args.get("text", "") or "").strip()
-            if not text:
-                return {"error": "text is required"}
+            text = text_value(args.get("text", ""), "研报因子简述 text",
+                              max_chars=20000, allow_empty=False)
             do_import = bool(args.get("import", True))
-            source = str(args.get("source", "") or "")
-            name = str(args.get("name", "") or "")
+            source = text_value(args.get("source", ""), "来源 source", max_chars=500)
+            name = text_value(args.get("name", ""), "因子名 name", max_chars=80)
             if do_import:
                 out = factor_forge.import_to_atlas(text, source=source, name=name,
                                                    overwrite=bool(args.get("overwrite", False)))
@@ -479,8 +541,9 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
         """Factor Forge 自定义因子的截面综合评分。"""
         try:
             from ..factors import custom
-            return custom.summary(provider_name=ctx.provider_name,
-                                  limit=int(args.get("limit", 8)))
+            limit = integer(args.get("limit", 8), "返回数量 limit",
+                            minimum=1, maximum=50)
+            return custom.summary(provider_name=ctx.provider_name, limit=limit)
         except Exception as e:  # noqa: BLE001
             return {"error": f"custom factor scores unavailable: {e}"}
 

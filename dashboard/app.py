@@ -39,6 +39,7 @@ from invest_agent.integrations import kairos as kairos_bridge  # noqa: E402
 from invest_agent.integrations import kairos_strategies as kairos_lab  # noqa: E402
 from invest_agent.risk_profiler import QUESTIONS, profile_from_answers  # noqa: E402
 from invest_agent.strategy import STRATEGY_MENU, menu_for_tier  # noqa: E402
+from invest_agent.validation import InputValidationError  # noqa: E402
 
 st.set_page_config(page_title="Atlas · Multi-Asset Advisor", layout="wide")
 
@@ -259,7 +260,7 @@ with st.expander(t("base.profile", lang), expanded=True):
             index=["low", "medium", "high"].index(_saved_liq),
             format_func=lambda x: liquidity_label(x, lang), key="ap_liq")
     _ap_capital = st.number_input(
-        t("base.capital", lang), min_value=10_000,
+        t("base.capital", lang), min_value=10_000, max_value=1_000_000_000_000,
         value=int(st.session_state.get("ap_capital_persist", 500_000)),
         step=50_000, key="ap_capital")
     st.session_state["ap_types_persist"] = list(_ap_types)
@@ -352,7 +353,7 @@ with st.sidebar:
     # (e.g. switching the page language). Persisting the value and feeding it
     # back as the default/index keeps the user's choices stable.
     capital = st.number_input(
-        t("side.capital", lang), min_value=10_000,
+        t("side.capital", lang), min_value=10_000, max_value=1_000_000_000_000,
         value=int(st.session_state.get("capital_persist", 300_000)),
         step=10_000, key="capital")
     st.session_state["capital_persist"] = capital
@@ -362,7 +363,7 @@ with st.sidebar:
             "free_text_persist",
             pick("能接受短期波动，但不想亏掉本金",
                  "Can tolerate short-term swings, but not losing principal", lang)),
-        key="free_text")
+        max_chars=2000, key="free_text")
     st.session_state["free_text_persist"] = free_text
     use_contrib = st.checkbox(
         t("side.custom_contrib", lang),
@@ -370,7 +371,7 @@ with st.sidebar:
         key="use_contrib")
     st.session_state["use_contrib_persist"] = use_contrib
     monthly_contrib = st.number_input(
-        t("side.monthly", lang), min_value=0,
+        t("side.monthly", lang), min_value=0, max_value=100_000_000,
         value=int(st.session_state.get("monthly_contrib_persist", 3000)),
         step=500, disabled=not use_contrib, key="monthly_contrib")
     st.session_state["monthly_contrib_persist"] = monthly_contrib
@@ -465,7 +466,7 @@ with st.sidebar:
             t("side.timing_text", lang),
             st.session_state.get("timing_free_persist", ""),
             placeholder=t("side.timing_placeholder", lang),
-            disabled=not use_timing, key="timing_free")
+            max_chars=500, disabled=not use_timing, key="timing_free")
         st.session_state["timing_free_persist"] = _timing_free
     with st.expander(t("side.menu", lang)):
         st.dataframe(
@@ -553,6 +554,8 @@ if run:
             )
         res["_signature"] = _input_signature()
         st.session_state["atlas_result"] = res
+    except InputValidationError as e:
+        st.error(str(e))
     except Exception as e:  # noqa: BLE001 - friendly error instead of traceback
         st.error(t("gen.error", lang, err=f"{type(e).__name__}: {e}"))
 
@@ -988,18 +991,20 @@ with st.expander(t("ff.title", lang)):
         _ff_text = st.text_area(
             t("ff.brief", lang),
             st.session_state.get("ff_text_persist", ""), height=180,
-            placeholder=t("ff.placeholder", lang), key="ff_text")
+            max_chars=20000, placeholder=t("ff.placeholder", lang), key="ff_text")
         st.session_state["ff_text_persist"] = _ff_text
         _ff_c1, _ff_c2 = st.columns(2)
         with _ff_c1:
             _ff_source = st.text_input(
                 t("ff.source", lang),
-                st.session_state.get("ff_source_persist", ""), key="ff_source")
+                st.session_state.get("ff_source_persist", ""),
+                max_chars=500, key="ff_source")
             st.session_state["ff_source_persist"] = _ff_source
         with _ff_c2:
             _ff_name = st.text_input(
                 t("ff.name", lang),
-                st.session_state.get("ff_name_persist", ""), key="ff_name")
+                st.session_state.get("ff_name_persist", ""),
+                max_chars=80, key="ff_name")
             st.session_state["ff_name_persist"] = _ff_name
 
         _ff_pdf = st.file_uploader(t("ff.pdf", lang), type=["pdf"], key="ff_pdf")

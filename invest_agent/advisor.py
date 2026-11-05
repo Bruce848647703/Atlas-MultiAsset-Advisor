@@ -29,6 +29,7 @@ from .portfolio.optimizer import (
 )
 from .portfolio.tactical import expected_returns_tactical
 from .risk_profiler import RiskProfile
+from .validation import finite_number, text_value
 from .strategy import (
     STRATEGY_MENU, Strategy, build_strategy_weights, make_weight_builder,
     menu_for_tier, tier_in_range,
@@ -182,7 +183,21 @@ def build_plan(
     satellite_budget: float = 0.0,
 ) -> Plan:
     cfg = get_config()
-    n_months = n_months or int(cfg["backtest"]["years"]) * 12
+    finite_number(profile.capital, "可投资本金 capital", minimum=1.0,
+                  maximum=1e12)
+    n_months = int(finite_number(
+        n_months if n_months is not None else int(cfg["backtest"]["years"]) * 12,
+        "回测月数 n_months", minimum=12, maximum=600))
+    if monthly_contrib is not None:
+        monthly_contrib = finite_number(monthly_contrib, "每月定投 monthly_contrib",
+                                        minimum=0.0, maximum=1e9)
+    satellite_budget = finite_number(satellite_budget, "卫星仓位预算 satellite_budget",
+                                     minimum=0.0, maximum=0.30)
+    if satellite_strategy is not None:
+        satellite_strategy = text_value(satellite_strategy, "卫星策略名",
+                                         max_chars=100) or None
+    if strategy_id is not None:
+        strategy_id = text_value(strategy_id, "策略ID", max_chars=80) or None
     fee_overhead = float(cfg["backtest"]["start_cost"])
     slippage = float(cfg["backtest"].get("slippage", 0.0))
     sell_tax = float(cfg["backtest"].get("sell_tax", 0.0))

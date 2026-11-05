@@ -14,6 +14,9 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 from .config import risk_tiers
+from .validation import (
+    finite_number, integer, normalize_answers, text_value,
+)
 
 # (weight, question_zh, question_en, options: (label_zh, label_en, score 0..3))
 QUESTIONS: List[Tuple[int, str, str, List[Tuple[str, str, int]]]] = [
@@ -84,6 +87,7 @@ class RiskProfile:
 
 def score_questionnaire(answers: Dict[int, int]) -> Tuple[float, str]:
     """answers: {question_index: option_index}. Returns (score 0..100, tier)."""
+    answers = normalize_answers(answers, QUESTIONS)
     raw = 0
     total_w = 0
     for i, (w, _, _, opts) in enumerate(QUESTIONS):
@@ -143,6 +147,14 @@ def profile_from_answers(
     free_text: str = "",
     horizon_years: Optional[int] = None,
 ) -> RiskProfile:
+    answers = normalize_answers(answers, QUESTIONS)
+    capital = finite_number(capital, "可投资本金 capital", minimum=0.0,
+                            maximum=1e12)
+    free_text = text_value(free_text, "风险态度/目标自由文本 free_text",
+                           max_chars=4000)
+    if horizon_years is not None:
+        horizon_years = integer(horizon_years, "投资期限 horizon_years",
+                                minimum=1, maximum=50)
     base, tier = score_questionnaire(answers)
     notes: List[str] = [f"questionnaire score={base}"]
     if free_text:
