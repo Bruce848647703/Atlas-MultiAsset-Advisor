@@ -31,6 +31,42 @@ def test_plan_respects_suitability_and_gate():
     assert "cost_drag_annual" in plan.backtest
 
 
+def test_english_report_is_complete_and_cjk_free():
+    import re
+
+    from invest_agent.report import build_report
+
+    res = InvestAgent().offline_plan(ANSWERS, capital=600_000, lang="en")
+    report = res["report"]
+    assert "## 5. Discipline & Rebalancing" in report
+    assert "## 1. Recommended Allocation" in report
+    assert not re.search(r"[\u4e00-\u9fff]", report)
+
+    fake_advice = {
+        "final_class_weights": {"equity_cn": 0.5, "fixed_income": 0.5},
+        "final_asset_weights": {"csi300_etf": 0.5, "bond_etf": 0.5},
+        "base_map": {
+            "equity_cn": {"base": "A股证券账户", "score": 80, "friction": 0.1},
+            "fixed_income": {"base": "境内公募基金(含QDII)", "score": 75, "friction": 0.2},
+        },
+        "overlays": {
+            "geo_regime": "风险偏好回升 (risk-on)", "geo_appetite": 0.2,
+            "macro_stance": {"equity_cn": "超配", "fixed_income": "低配"},
+        },
+    }
+    fake_council = {
+        "council": [{"name_zh": "沃伦·巴菲特", "name_en": "Warren Buffett",
+                     "stance": "偏防御", "relevance": 0.8}],
+        "dissent": [], "consensus": "中性", "n_analysts_total": 30,
+        "divergence": {"score": 0.2, "level": "高度共识"},
+    }
+    rich = build_report(res["plan"], res["charts"], lang="en",
+                        final_advice=fake_advice, analyst_council=fake_council)
+    assert "Final Integrated Advice" in rich
+    assert "Analyst Council" in rich
+    assert not re.search(r"[\u4e00-\u9fff]", rich)
+
+
 def test_explicit_strategy_outside_tier_is_rejected():
     from invest_agent.advisor import build_plan
     from invest_agent.data.synthetic import SyntheticProvider
