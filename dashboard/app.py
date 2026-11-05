@@ -551,6 +551,7 @@ if run:
                 timing=_timing_arg,
                 satellite_strategy=None if satellite_choice == "none" else satellite_choice,
                 satellite_budget=satellite_budget,
+                lang="en" if lang == "en" else "zh",
             )
         res["_signature"] = _input_signature()
         st.session_state["atlas_result"] = res
@@ -1336,9 +1337,6 @@ with st.expander(t("lab.title", lang)):
             st.caption(t("lab.no_cache", lang))
 
 with st.expander(t("report.title", lang)):
-    if lang == "en":
-        st.info(t("report.zh_only", lang))
-        st.stop()
     import base64 as _b64
     import os as _os
     import re as _re
@@ -1358,9 +1356,10 @@ with st.expander(t("report.title", lang)):
     _fa_rep = st.session_state.get("atlas_final_advice")
     _cc_rep = st.session_state.get("atlas_council")
     _cc_rep = _cc_rep if (_cc_rep and not _cc_rep.get("error")) else None
-    if (_fa_rep and not _fa_rep.get("error")) or _cc_rep:
+    if (_fa_rep and not _fa_rep.get("error")) or _cc_rep or lang == "en":
         from invest_agent.report import build_report as _br  # noqa: E402
         _rep_src = _br(plan, res["charts"],
+                       lang="en" if lang == "en" else "zh",
                        final_advice=(_fa_rep if _fa_rep and not _fa_rep.get("error") else None),
                        analyst_council=_cc_rep)
     else:

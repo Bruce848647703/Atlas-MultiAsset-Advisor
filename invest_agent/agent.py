@@ -62,7 +62,8 @@ class InvestAgent:
                      strategy_id: Optional[str] = None,
                      timing=None,
                      satellite_strategy: Optional[str] = None,
-                     satellite_budget: float = 0.0):
+                     satellite_budget: float = 0.0,
+                     lang: str = "zh"):
         """Deterministic end-to-end plan without the LLM.
 
         `timing` accepts either a free-text view ("看空A股，看多加密") or a
@@ -85,7 +86,7 @@ class InvestAgent:
                           satellite_budget=satellite_budget)
         self.ctx.plan = plan
         charts = render_all(plan, self.ctx.output_dir)
-        report = build_report(plan, charts)
+        report = build_report(plan, charts, lang=lang)
         return {
             "profile": profile, "plan": plan, "charts": charts, "report": report,
             "segment_insight": segment_insight(profile),

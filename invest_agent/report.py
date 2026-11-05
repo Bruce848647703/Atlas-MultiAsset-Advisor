@@ -106,9 +106,231 @@ def _render_council(council: Dict) -> str:
     return "\n".join(L) + "\n"
 
 
+_EN_CLASS = {
+    "cash": "Cash", "fixed_income": "Fixed income", "hybrid": "Hybrid",
+    "commodity": "Commodities", "equity_cn": "China equities",
+    "equity_global": "Global equities", "crypto": "Crypto", "futures": "Futures",
+}
+_EN_OBJECTIVE = {
+    "max_sharpe": "Max Sharpe", "mean_variance": "Mean-variance",
+    "min_vol": "Min volatility", "risk_parity": "Risk parity", "equal": "Equal weight",
+}
+_EN_CADENCE = {
+    "high": "High (monthly)", "mid": "Mid (quarterly)", "low": "Low (annual)",
+}
+_EN_STANCE = {
+    "超配": "Overweight", "标配": "Neutral", "低配": "Underweight",
+    "偏进攻": "Offensive", "中性": "Neutral", "偏防御": "Defensive",
+}
+_EN_REGIME = {
+    "风险偏好回升 (risk-on)": "Risk-on",
+    "避险情绪主导 (risk-off)": "Risk-off",
+    "中性/观望": "Neutral / wait-and-see",
+    "数据不可用": "Data unavailable", "未知": "Unknown",
+}
+_EN_DIVERGENCE = {
+    "高度共识": "Strong consensus", "中度分歧": "Moderate disagreement",
+    "高度分歧": "High disagreement",
+}
+
+
+def _metrics_table_en(plan: Plan) -> str:
+    m, b = plan.backtest, {} if not plan.bench_backtest else plan.bench_backtest
+    rows = [
+        ("Ann. return", _fmt_pct(m["ann_return"]),
+         _fmt_pct(b.get("ann_return", 0)) if b else "-"),
+        ("Ann. vol", _fmt_pct(m["ann_vol"]),
+         _fmt_pct(b.get("ann_vol", 0)) if b else "-"),
+        ("Sharpe", f"{m['sharpe']:.2f}", f"{b.get('sharpe', 0):.2f}" if b else "-"),
+        ("Max drawdown", _fmt_pct(m["max_drawdown"]),
+         _fmt_pct(b.get("max_drawdown", 0)) if b else "-"),
+        ("Calmar", f"{m['calmar']:.2f}", f"{b.get('calmar', 0):.2f}" if b else "-"),
+        ("Monthly win rate", _fmt_pct(m["win_rate"]),
+         _fmt_pct(b.get("win_rate", 0)) if b else "-"),
+        ("Worst month", _fmt_pct(m["worst_month"]),
+         _fmt_pct(b.get("worst_month", 0)) if b else "-"),
+    ]
+    if "cost_drag_annual" in m:
+        rows.append(("Annual cost drag", _fmt_pct(m["cost_drag_annual"]), "-"))
+    lines = ["| Metric | Portfolio | CSI300 ETF benchmark |", "|---|---|---|"]
+    lines += [f"| {n} | {p} | {q} |" for n, p, q in rows]
+    return "\n".join(lines)
+
+
+def _build_report_en(plan: Plan, chart_paths: Optional[Dict[str, str]],
+                     final_advice: Optional[Dict],
+                     analyst_council: Optional[Dict]) -> str:
+    """English report from the same deterministic plan data (no Chinese prose)."""
+    from .data.universe import build_universe as _bu
+    from .global_base import GLOBAL_BASES
+
+    name_of = {a.id: a.name_en for a in plan.assets}
+    cls_of = {a.id: a.asset_class for a in plan.assets}
+    base_en = {b.name_zh: b.name_en for b in GLOBAL_BASES}
+    chart_paths = chart_paths or {}
+    L = [f"# Atlas Multi-Asset Plan ({plan.profile.tier} "
+         f"{plan.profile.tier_info['label_en']})\n",
+         describe_persona(plan.profile, lang="en") + "\n"]
+
+    if final_advice:
+        ov = final_advice.get("overlays", {})
+        macro = ov.get("macro_stance", {})
+        over = [_EN_CLASS.get(c, c) for c, s in macro.items() if s == "超配"]
+        under = [_EN_CLASS.get(c, c) for c, s in macro.items() if s == "低配"]
+        thesis = (f"Regime: {_EN_REGIME.get(ov.get('geo_regime', ''), ov.get('geo_regime', '—'))} "
+                  f"(risk appetite {ov.get('geo_appetite', 0):+.2f}). ")
+        if over:
+            thesis += f"Macro overweight: {', '.join(over)}. "
+        if under:
+            thesis += f"Underweight: {', '.join(under)}. "
+        thesis += (f"The baseline strategy ({plan.strategy.name_en}) was tilted within "
+                   f"suitability caps and mapped to the lowest-friction global bases.")
+        L.append("## ★ Final Integrated Advice\n")
+        L.append(f"**Thesis**: {thesis}\n")
+        L.append("### Final class allocation & global basing")
+        L.append("| Asset class | Weight | Base | Base score | Friction |")
+        L.append("|---|---|---|---|---|")
+        for cls, w in final_advice.get("final_class_weights", {}).items():
+            bm = (final_advice.get("base_map") or {}).get(cls, {})
+            base = base_en.get(bm.get("base", ""), bm.get("base", "—"))
+            L.append(f"| {_EN_CLASS.get(cls, cls)} | **{_fmt_pct(w)}** | {base} "
+                     f"| {bm.get('score', '—')} | {bm.get('friction', '—')} |")
+        L.append("")
+        L.append("### Action list")
+        top = sorted(final_advice.get("final_asset_weights", {}).items(),
+                     key=lambda kv: -kv[1])[:8]
+        for i, (aid, w) in enumerate(top, 1):
+            bm = (final_advice.get("base_map") or {}).get(cls_of.get(aid, ""), {})
+            where = f" (base: {base_en.get(bm.get('base', ''), bm.get('base', ''))})" if bm else ""
+            L.append(f"{i}. {name_of.get(aid, aid)} — {_fmt_pct(w)}{where}")
+        L.append("")
+
+    if analyst_council:
+        L.append("## Analyst Council\n")
+        views = analyst_council.get("council", [])
+        names = {v.get("name_zh"): v.get("name_en", v.get("name_zh")) for v in views}
+        dissent = [names.get(x, x) for x in analyst_council.get("dissent", [])]
+        consensus = _EN_STANCE.get(analyst_council.get("consensus", ""),
+                                   analyst_council.get("consensus", "—"))
+        L.append(f"Consensus: **{consensus}** · selected {len(views)} of "
+                 f"{analyst_council.get('n_analysts_total', 30)} analysts"
+                 + (f" · dissent: {', '.join(dissent)}" if dissent else "") + "\n")
+        dv = analyst_council.get("divergence") or {}
+        if dv:
+            L.append(f"Divergence: **{dv.get('score', 0):.2f}** "
+                     f"({_EN_DIVERGENCE.get(dv.get('level', ''), dv.get('level', '—'))}) — "
+                     f"council influence is damped by disagreement.\n")
+        for v in views:
+            stance = _EN_STANCE.get(v.get("stance", ""), v.get("stance", "—"))
+            L.append(f"- **{v.get('name_en', v.get('name_zh', ''))}** — {stance} "
+                     f"(relevance {v.get('relevance', 0):.2f})")
+        L.append("\n_The council is a simulation of different investment schools; "
+                 "reference only, not investment advice._\n")
+
+    st = plan.strategy
+    L.append("## 0. Selected Strategy\n")
+    L.append(f"**{st.name_en}** · objective `{_EN_OBJECTIVE.get(st.objective, st.objective)}` · "
+             f"cadence `{_EN_CADENCE.get(st.cadence, st.cadence_label)}`\n")
+    if plan.menu:
+        L.append("Strategy menu (same data, each at its own rebalance cadence):\n")
+        L.append("| Strategy | Objective | Cadence | Return | Vol | Sharpe | DSR | Max DD | Turnover |")
+        L.append("|---|---|---|---|---|---|---|---|---|")
+        for row in plan.menu:
+            mark = " ✅" if row["id"] == st.id else ""
+            L.append(f"| {row.get('name_en', row['name_zh'])}{mark} "
+                     f"| {_EN_OBJECTIVE.get(row['objective'], row['objective'])} "
+                     f"| {_EN_CADENCE.get(row['cadence'], row['cadence_label'])} "
+                     f"| {_fmt_pct(row['ann_return'])} | {_fmt_pct(row['ann_vol'])} "
+                     f"| {row['sharpe']:.2f} | {row.get('dsr', 0):.2f} "
+                     f"| {_fmt_pct(row['max_drawdown'])} "
+                     f"| {row.get('turnover_annual', 0):.2f} |")
+        L.append("")
+
+    if plan.satellite:
+        sat = plan.satellite
+        L.append("### Satellite Overlay\n")
+        L.append(f"- Strategy: **{sat.get('name')}** ({sat.get('channel')}) · "
+                 f"as of {sat.get('as_of', '—')}")
+        L.append(f"- Budget cap {sat.get('requested_budget', 0):.0%} · "
+                 f"actual portfolio weight {sat.get('portfolio_weight', 0):.1%} "
+                 f"(strategy invested {sat.get('invested', 0):.1%}) · "
+                 f"Atlas coverage {sat.get('coverage', 0):.0%}")
+        L.append("- Satellite weights: " + ", ".join(
+            f"{name_of.get(k, k)} {v:.1%}" for k, v in
+            (sat.get("weights") or {}).items()) + "\n")
+        L.append("_Clipped to suitability caps; research overlay only, not investment advice._\n")
+
+    L.append("## 1. Recommended Allocation\n")
+    L.append("| Asset | Class | Weight | Expected return | Volatility |")
+    L.append("|---|---|---|---|---|")
+    for aid in sorted(plan.weights, key=lambda k: -plan.weights[k]):
+        L.append(f"| {name_of[aid]} | {_EN_CLASS.get(cls_of[aid], cls_of[aid])} "
+                 f"| **{_fmt_pct(plan.weights[aid])}** | {_fmt_pct(plan.mu_ann[aid])} "
+                 f"| {_fmt_pct(plan.vol_ann[aid])} |")
+    L.append("")
+    L.append(f"Ex-ante expectation: return **{_fmt_pct(plan.expected['ann_return'])}**, "
+             f"vol **{_fmt_pct(plan.expected['ann_vol'])}**, "
+             f"Sharpe≈ **{plan.expected['sharpe_hint']:.2f}**\n")
+
+    zero = [(a.name_en, _EN_CLASS.get(a.asset_class, a.asset_class),
+             plan.class_caps.get(a.asset_class, 0.0))
+            for a in _bu()
+            if a.id not in plan.weights and plan.class_caps.get(a.asset_class, 0.0) > 0]
+    if zero:
+        L.append("Eligible but not allocated this time (with caps): " +
+                 "; ".join(f"{n} ({c} ≤ {_fmt_pct(cap, 0)})" for n, c, cap in zero) + "\n")
+
+    L.append("## 2. Historical Backtest (walk-forward, no look-ahead)\n")
+    L.append(_metrics_table_en(plan) + "\n")
+
+    if plan.kairos_risk:
+        k = plan.kairos_risk
+        L.append("### Kairos Risk Overlay\n")
+        L.append("| Metric | Value |\n|---|---|")
+        L.append(f"| Historical VaR 95% / 99% | {_fmt_pct(k.get('var_95', 0), 2)} / "
+                 f"{_fmt_pct(k.get('var_99', 0), 2)} |")
+        L.append(f"| Expected shortfall 95% / 99% | {_fmt_pct(k.get('es_95', 0), 2)} / "
+                 f"{_fmt_pct(k.get('es_99', 0), 2)} |")
+        L.append(f"| Diversification ratio / effective N | "
+                 f"{k.get('diversification_ratio', 0):.2f} / {k.get('effective_n', 0):.2f} |")
+        if k.get("class_risk"):
+            L.append("| Risk contribution by class | " + "; ".join(
+                f"{_EN_CLASS.get(c, c)} {v:.0%}" for c, v in
+                sorted(k["class_risk"].items(), key=lambda kv: -kv[1])) + " |")
+        L.append(f"\n_Source: {k.get('source', 'kairos-risk')}, "
+                 f"{k.get('observations', 0)} monthly observations._\n")
+
+    L.append("## 3. Goal Projection\n")
+    last = plan.projection[-1] if plan.projection else None
+    if last:
+        L.append(f"Starting capital ¥{plan.profile.capital:,.0f}, monthly contribution "
+                 f"¥{plan.monthly_contrib:,.0f}, expected annual return "
+                 f"{_fmt_pct(plan.expected['ann_return'])}:\n"
+                 f"> **Value after {int(last['year'])} years ≈ ¥{last['value']:,.0f}** "
+                 f"(gains ¥{last['gain']:,.0f}; principal ¥{last['principal_in']:,.0f})\n")
+
+    L.append("## 4. Charts\n")
+    labels = {"allocation": "Allocation", "frontier": "Risk-return map & efficient frontier",
+              "equity": "Equity curve & drawdown", "projection": "Goal projection"}
+    for k, p in chart_paths.items():
+        if p:
+            L.append(f"![{labels.get(k, k)}]({os.path.basename(p)})\n")
+
+    L.append("## 5. Discipline & Rebalancing\n")
+    L.append("- Review drift quarterly; rebalance when a class weight approaches 80% of its cap;")
+    L.append("- Crypto/futures only with risk capital; no leverage;")
+    L.append("- In extreme volatility, reduce single-asset concentration rather than panic-selling.\n")
+    L.append("---")
+    L.append("> **Disclaimer**: Research references only, NOT investment advice. "
+             "Markets carry risk; invest with care.\n")
+    return "\n".join(L)
+
+
 def build_report(plan: Plan, chart_paths: Optional[Dict[str, str]] = None,
                  lang: str = "zh", final_advice: Optional[Dict] = None,
                  analyst_council: Optional[Dict] = None) -> str:
+    if lang == "en":
+        return _build_report_en(plan, chart_paths, final_advice, analyst_council)
     cfg = get_config()
     disclaimer = cfg["agent"]["disclaimer"].strip()
     name_of = {a.id: a.name_en for a in plan.assets}
