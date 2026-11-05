@@ -10,6 +10,7 @@ font = "sans serif"
 headless = true
 address = "127.0.0.1"   # safe default; dashboard-host/Docker override this
 enableXsrfProtection = true
+maxUploadSize = 20       # MB; guards PDF/research uploads
 
 [browser]
 gatherUsageStats = false

@@ -19,6 +19,8 @@ from typing import Dict, List, Optional
 
 import numpy as np
 
+from .validation import InputValidationError
+
 # ---------------------------------------------------------------------------
 # Keyword maps
 # ---------------------------------------------------------------------------
@@ -123,7 +125,22 @@ def views_from_args(views_arg) -> Optional[TimingView]:
     if isinstance(views_arg, str):
         return extract_timing_views(views_arg)
     if isinstance(views_arg, dict):
-        tilts = {str(c): float(np.clip(float(v), -1, 1)) for c, v in views_arg.items()}
+        valid_classes = {"cash", "fixed_income", "hybrid", "commodity",
+                         "equity_cn", "equity_global", "crypto", "futures"}
+        tilts = {}
+        for cls, value in views_arg.items():
+            cls = str(cls).strip()
+            if cls not in valid_classes:
+                raise InputValidationError(
+                    f"未知资产类别 '{cls}'；可选: {', '.join(sorted(valid_classes))}")
+            try:
+                tilt = float(value)
+            except (TypeError, ValueError) as exc:
+                raise InputValidationError(
+                    f"择时倾斜 {cls} 必须是数字 (got {value!r})") from exc
+            if not np.isfinite(tilt):
+                raise InputValidationError(f"择时倾斜 {cls} 必须是有限数字")
+            tilts[cls] = float(np.clip(tilt, -1.0, 1.0))
         return TimingView(tilts=tilts, source="manual")
     return None
 

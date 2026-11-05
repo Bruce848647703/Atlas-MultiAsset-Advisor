@@ -179,6 +179,11 @@ and validates it on sample data. Atlas wraps the pipeline end to end:
   rejects an explicit strategy outside the investor's tier.
 - If questionnaire/inputs change after generating a plan, the result panel warns
   that it still shows the previous run until Generate is clicked again.
+- **Input validation happens before the quant core**: finite/non-negative
+  capital, 0–3 questionnaire options, 1–50y horizon, 12–600 month lookbacks,
+  0–0.30 satellite budget, text-length caps (profile/forge/timing) and valid
+  asset-class timing keys. API/tool callers get a readable error instead of a
+  deep numpy/optimizer exception.
 
 ### LLM Safety Boundary ★ (`harness.py` + `safety.py`)
 
@@ -389,7 +394,7 @@ pip install -r requirements.txt          # numpy/pandas/scipy/matplotlib/openai/
 
 make demo        # offline demo: mass / affluent / HNW → examples/demo_outputs/
 make lint        # ruff static checks (pip install -r requirements-dev.txt)
-make test        # unit + integration tests (193)
+make test        # unit + integration tests (200)
 make eval        # compliance gate (weight legality / caps / disclaimer / segment access)
 make sft         # generate 400 SFT conversations → training/sft_data/train.jsonl
 
@@ -495,7 +500,7 @@ scripts/factor_forge_import.py     # CLI: report brief -> Factor JSON/code -> st
 training/         # README / generate_sft_data.py / build_real_dataset.py /
                   # eval/(compliance + requirement benchmark) / finetune/
 examples/factor_library_sample/  # factor-library sample (full lib: ATLAS_FACTOR_DIR)
-tests/            # 193 tests (offline, synthetic provider)
+tests/            # 200 tests (offline, synthetic provider)
 .streamlit/config.toml + dashboard/style.py  # Jane Street-style light theme
 dashboard/i18n.py  # zh-Hans / en / zh-Hant UI catalog + entity labels
 .github/workflows/ci.yml  # GitHub Actions: lint + tests (3.10/3.12/3.13) + gates
