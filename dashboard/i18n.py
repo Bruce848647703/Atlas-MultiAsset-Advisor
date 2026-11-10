@@ -126,6 +126,10 @@ S = {
     "side.menu_cadence": ("调仓", "Cadence"),
     "side.menu_tiers": ("适用", "Tiers"),
     "side.about": ("数据源说明", "About data sources"),
+    "feedback.title": ("体验建议 / Feedback", "Experience feedback"),
+    "feedback.links": ("- [提交体验建议]({issue})\n- [参与讨论]({discussion})\n\n请勿粘贴真实持仓/API key。",
+                       "- [Submit experience feedback]({issue})\n- [Join the discussion]({discussion})\n\n"
+                       "Do not paste real holdings or API keys."),
     "side.about_body": (
         "**synthetic（离线）**：固定种子模拟的多资产世界，内置熊市/繁荣/币圈闪崩情景，"
         "完全可复现、无需网络，适合研究与演示。\n\n"

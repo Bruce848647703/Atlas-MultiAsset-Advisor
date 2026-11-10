@@ -1,0 +1,59 @@
+title: "[Experience] "
+labels: ["feedback", "experience"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Share how Atlas felt in real use. This is a conversation, not a bug tracker.
+
+        Please avoid real holdings, account numbers, API keys or personal data.
+        For reproducible failures, open the **Bug report** issue form instead.
+
+  - type: dropdown
+    id: scenario
+    attributes:
+      label: Usage scenario
+      options:
+        - First run / onboarding
+        - Personal allocation planning
+        - Strategy / backtest research
+        - Kairos Strategy Lab / satellite overlay
+        - Factor Forge / custom factors
+        - Report / export
+        - Deployment / team demo
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: friction
+    attributes:
+      label: What was the friction?
+      description: Where did you hesitate, misunderstand, retry or lose confidence?
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: What would make it better?
+      description: A wording change, a default, a guardrail, a missing view — concrete is best.
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Impact
+      options:
+        - Blocker
+        - High
+        - Medium
+        - Low / polish
+        - Idea
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit
+      placeholder: e.g. eae61fb

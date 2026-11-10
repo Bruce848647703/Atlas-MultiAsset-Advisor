@@ -480,6 +480,13 @@ with st.sidebar:
         )
     with st.expander(t("side.about", lang)):
         st.markdown(t("side.about_body", lang))
+    st.divider()
+    st.caption(t("feedback.title", lang))
+    st.markdown(t("feedback.links", lang,
+                  issue="https://github.com/Bruce848647703/Atlas-MultiAsset-Advisor/"
+                        "issues/new?template=experience_feedback.yml",
+                  discussion="https://github.com/Bruce848647703/Atlas-MultiAsset-Advisor/"
+                             "discussions/26"))
 
 # ----------------------------------------------------------------------
 # Questionnaire: ALWAYS rendered, before the generate button

@@ -592,6 +592,10 @@ deployment — this project is read-only market data, keep it that way.
 
 ## 8. Contributing & Security
 
+- **Experience feedback**: [structured issue form](https://github.com/Bruce848647703/Atlas-MultiAsset-Advisor/issues/new?template=experience_feedback.yml)
+  · [feedback thread](https://github.com/Bruce848647703/Atlas-MultiAsset-Advisor/discussions/26)
+  · [Discussions](https://github.com/Bruce848647703/Atlas-MultiAsset-Advisor/discussions)
+  · guidance in [`FEEDBACK.md`](FEEDBACK.md). Real-use friction is more valuable than a feature wishlist.
 - Development workflow, design rules, and PR checklist: [`CONTRIBUTING.md`](CONTRIBUTING.md)
 - Deployment hardening and vulnerability reporting: [`SECURITY.md`](SECURITY.md)
 - CI: every push/PR runs the full offline test suite on Python 3.10/3.12/3.13 plus

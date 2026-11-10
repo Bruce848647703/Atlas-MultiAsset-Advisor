@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Atlas experience feedback / 体验建议
+    url: https://github.com/Bruce848647703/Atlas-MultiAsset-Advisor/discussions/26
+    about: Share real-use friction, confusion or suggestions in the feedback thread.
   - name: Question / discussion
     url: https://github.com/Bruce848647703/Atlas-MultiAsset-Advisor/discussions
     about: Ask usage questions or discuss ideas before opening an issue.

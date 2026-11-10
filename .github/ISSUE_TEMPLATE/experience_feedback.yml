@@ -1,0 +1,132 @@
+name: Atlas experience feedback / 体验建议
+description: Tell us how Atlas felt in real use — onboarding, questionnaire, allocation, report, Kairos/Factor Forge, CLI, docs, deployment
+title: "[Feedback] "
+labels: ["feedback", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for trying Atlas. This form is for **experience and usability feedback**, not bugs
+        (use the Bug report form for reproducible failures) and not investment advice requests.
+
+        **Privacy**: do not paste real holdings, account numbers, API keys, or personal data.
+        Approximate amounts and anonymised screenshots are enough.
+
+  - type: dropdown
+    id: role
+    attributes:
+      label: How were you using Atlas?
+      options:
+        - Investor / trying my own allocation
+        - Developer / running the code locally
+        - Researcher / strategies, factors or backtests
+        - Demo viewer / colleague walkthrough
+        - Deploying for a team
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which area?
+      options:
+        - First-run / setup / dependencies
+        - Questionnaire & risk profiling
+        - Allocation / strategy selection
+        - Final advice / analyst council
+        - Full report
+        - Dashboard UI / language switch
+        - Kairos Strategy Lab / satellite overlay
+        - Factor Forge / custom factors
+        - CLI / API / LLM tools
+        - Docs / demo script
+        - Docker / deployment
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: language
+    attributes:
+      label: Page language
+      options:
+        - 简体中文
+        - English
+        - 繁體中文
+        - Switched between languages
+        - Not applicable
+    validations:
+      required: true
+
+  - type: textarea
+    id: scenario
+    attributes:
+      label: What were you trying to do?
+      description: A short concrete scenario (e.g. "C3, ¥500k, wanted a retirement plan and a PDF export").
+      placeholder: |
+        Tier / capital (approx.):
+        Data source (synthetic / merged / kairos):
+        What I wanted to accomplish:
+    validations:
+      required: true
+
+  - type: textarea
+    id: friction
+    attributes:
+      label: What felt confusing, slow, or wrong?
+      description: Where did you hesitate, re-read, retry, or lose trust? Include the exact labels/screens if possible.
+    validations:
+      required: true
+
+  - type: textarea
+    id: positive
+    attributes:
+      label: What worked well?
+      description: Keep what we should not break.
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: How much did it affect you?
+      options:
+        - Blocker — could not complete the task
+        - High — completed with major workaround
+        - Medium — annoying but usable
+        - Low — polish / wording
+        - Idea — not a problem, a suggestion
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Commit / version
+      description: Output of `git rev-parse --short HEAD`, if available.
+      placeholder: e.g. eae61fb
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: |
+        OS:
+        Python:
+        Install method (pip / conda / Docker):
+        Browser (for dashboard):
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshots / logs
+      description: Drag screenshots here. Remove secrets and personal data.
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Checklist
+      options:
+        - label: I have removed API keys, account numbers and real holdings from this report.
+          required: true
+        - label: I am OK with the maintainer following up in this issue.
+          required: true
