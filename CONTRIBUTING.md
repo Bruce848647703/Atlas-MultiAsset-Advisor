@@ -14,6 +14,14 @@ pip install -r requirements-dev.txt   # runtime deps + ruff
 
 Python 3.10+ is supported; CI also runs on 3.13.
 
+## Feedback before code
+
+Real-use friction is valuable. If you are reporting an experience issue (confusing
+defaults, unclear labels, a step that made you hesitate), use the
+[experience feedback form](https://github.com/Bruce848647703/Atlas-MultiAsset-Advisor/issues/new?template=experience_feedback.yml)
+or the [feedback discussion](https://github.com/Bruce848647703/Atlas-MultiAsset-Advisor/discussions/26).
+Reproducible failures belong in the Bug report form. See [`FEEDBACK.md`](FEEDBACK.md).
+
 ## Before opening a PR
 
 ```bash
