@@ -6,3 +6,5 @@ from .optimizer import (  # noqa: F401
     risk_parity,
     efficient_frontier,
 )
+
+from .rebalance import analyze_drift, weights_from_positions  # noqa: F401

@@ -389,6 +389,9 @@ DSR, drawdown and turnover appear in the page/report.
 
 ## 3. Quickstart
 
+Engineering docs: [docs/README.md](docs/README.md) · portfolio pipeline and
+rebalance monitor: [docs/PORTFOLIO.md](docs/PORTFOLIO.md).
+
 ```bash
 pip install -r requirements.txt          # numpy/pandas/scipy/matplotlib/openai/pyyaml/akshare
 
@@ -488,7 +491,8 @@ invest_agent/
                   #   factor_evolution / report_pdf_miner
   advisor.py      # strategy-driven allocation pipeline
   portfolio/      # metrics / optimizer(MV+maxSharpe+minVol+riskParity) /
-                  #   backtest(walk-forward) / tactical(momentum+trend gate)
+                  #   backtest(walk-forward) / tactical(momentum+trend gate) /
+                  #   rebalance(target-vs-current drift monitor)
   data/           # base / synthetic / akshare / kairos / universe (26 assets)
   tools/          # 22 tools exposed to the LLM
   charts.py, report.py, cli.py
@@ -497,10 +501,12 @@ integrations/kairos_strategies.py  # ★ 106-strategy lab / cached leaderboard
 scripts/run_demo.py         dashboard/app.py (streamlit)
 scripts/kairos_strategy_lab.py     # CLI: strategy leaderboard / single curve
 scripts/factor_forge_import.py     # CLI: report brief -> Factor JSON/code -> store
+scripts/rebalance_check.py         # CLI: target vs current weights -> drift/trades
+docs/               # architecture, portfolio math, operations and testing notes
 training/         # README / generate_sft_data.py / build_real_dataset.py /
                   # eval/(compliance + requirement benchmark) / finetune/
 examples/factor_library_sample/  # factor-library sample (full lib: ATLAS_FACTOR_DIR)
-tests/            # 201 tests (offline, synthetic provider)
+tests/            # 210 tests (offline, synthetic provider)
 .streamlit/config.toml + dashboard/style.py  # Jane Street-style light theme
 dashboard/i18n.py  # zh-Hans / en / zh-Hant UI catalog + entity labels
 .github/workflows/ci.yml  # GitHub Actions: lint + tests (3.10/3.12/3.13) + gates
@@ -528,6 +534,23 @@ hexagon motifs.
   The full Markdown report has native Chinese and English templates (Traditional
   is converted from Chinese), including final advice/council tables where
   available.
+
+## 6.6 Rebalance Monitor
+
+`scripts/rebalance_check.py` compares an Atlas target plan with the current
+portfolio. Cash is the residual weight; trades are target-minus-current and
+positive means buy.
+
+```bash
+python scripts/rebalance_check.py \
+  --target target.json --current current.json \
+  --value 1000000 --threshold 0.05
+# or: make rebalance TARGET=target.json CURRENT=current.json VALUE=1000000
+```
+
+Exit code `0` means within tolerance, `1` means the drift threshold was breached,
+`2` means invalid input. See [docs/PORTFOLIO.md](docs/PORTFOLIO.md) for the
+module API and formulas.
 
 ## 7. Deployment: Expose the Dashboard
 
@@ -608,7 +631,7 @@ deployment — this project is read-only market data, keep it that way.
 
 - [ ] Real crypto/futures data sources (ccxt / CTP quotes)
 - [ ] Black-Litterman view injection (LLM report reading → view vector)
-- [ ] Rebalance alerts & drift monitoring (scheduled jobs)
+- [x] Rebalance alerts & drift monitoring (weight-based monitor + CLI)
 - [ ] Monte-Carlo stress tests & scenario charts
 - [ ] Multilingual reports; mobile layout
 

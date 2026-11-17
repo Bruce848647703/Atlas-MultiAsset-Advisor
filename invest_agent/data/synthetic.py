@@ -66,7 +66,9 @@ ASSET_TWEAKS = {
 def _make_psd(corr: np.ndarray) -> np.ndarray:
     vals, vecs = np.linalg.eigh(corr)
     vals = np.clip(vals, 1e-6, None)
-    m = vecs @ np.diag(vals) @ vecs.T
+    # Explicit contraction avoids a macOS Accelerate matmul warning on tiny
+    # correlation matrices; the result is the same symmetric PSD matrix.
+    m = np.einsum("ij,j,kj->ik", vecs, vals, vecs, optimize=False)
     d = np.sqrt(np.diag(m))
     return m / np.outer(d, d)
 
@@ -124,7 +126,7 @@ class SyntheticProvider(DataProvider):
         T = self.n_months
         Z = rng.standard_normal((T, n))
         vol_cluster = np.exp(rng.normal(0.0, 0.22, T))      # vol clustering
-        eps = Z @ L.T
+        eps = np.einsum("ij,kj->ik", Z, L, optimize=False)
         R = mu_m[None, :] + sig_m[None, :] * eps * vol_cluster[:, None]
 
         # regimes: bear m30..41, crypto crash at m36, boom m70..83

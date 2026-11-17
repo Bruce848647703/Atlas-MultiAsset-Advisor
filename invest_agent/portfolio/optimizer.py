@@ -53,10 +53,12 @@ def cov_shrinkage(
     X = np.asarray(monthly_returns, dtype=float)
     T, N = X.shape
     X = X - X.mean(axis=0)
-    S = X.T @ X / T
+    # Explicit contractions avoid spurious BLAS warnings on macOS Accelerate;
+    # the matrices are small and this path is not the hot loop.
+    S = np.einsum("ij,ik->jk", X, X, optimize=False) / T
 
     X2 = X ** 2
-    Phi = X2.T @ X2 / T - S ** 2            # pi_ij: asyvar of sqrt(T)*s_ij
+    Phi = np.einsum("ij,ik->jk", X2, X2, optimize=False) / T - S ** 2
     pi_total = float(Phi.sum())
 
     var = np.diag(S).copy()

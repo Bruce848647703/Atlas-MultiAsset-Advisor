@@ -1,4 +1,4 @@
-.PHONY: demo test lint eval sft chat dashboard dashboard-host docker-build docker-run kairos-lab evolve evolve-daemon evolve-daemon-stop
+.PHONY: demo test lint eval sft chat dashboard dashboard-host docker-build docker-run kairos-lab rebalance evolve evolve-daemon evolve-daemon-stop
 TOKEN ?=
 
 demo:            ## offline tri-strata demo -> examples/demo_outputs/
@@ -32,6 +32,10 @@ docker-build:    ## build the non-root runtime image
 
 kairos-lab:      ## run the Kairos 106-strategy lab (sibling repos)
 	python3 scripts/kairos_strategy_lab.py --top 20
+
+rebalance:       ## drift check (TARGET=plan.json CURRENT=weights.json [VALUE=1000000])
+	@test -n "$(TARGET)" -a -n "$(CURRENT)" || { echo "error: TARGET and CURRENT are required"; exit 1; }
+	python3 scripts/rebalance_check.py --target '$(TARGET)' --current '$(CURRENT)' --value '$(or $(VALUE),1000000)'
 
 docker-run:      ## run the image (requires TOKEN=<secret>)
 	@test -n "$(TOKEN)" || { echo "error: TOKEN is required, e.g. make docker-run TOKEN='s3cret'"; exit 1; }
