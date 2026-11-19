@@ -6,6 +6,10 @@
 python -m pip install -r requirements.txt
 make dashboard            # local Streamlit dashboard
 make demo                 # offline three-strata demo -> examples/demo_outputs/
+
+# non-interactive CLI: deterministic offline plan, no stdin
+python -m invest_agent.cli --offline \
+  --answers 2,2,2,2,2,2,2,2,2 --capital 200000 --no-report
 ```
 
 `DEEPSEEK_API_KEY` enables conversational mode. Without it, `InvestAgent` uses
