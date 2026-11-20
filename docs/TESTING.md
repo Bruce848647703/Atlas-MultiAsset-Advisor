@@ -9,7 +9,7 @@ python -m pytest tests -q
 ruff check .
 ```
 
-Expected shape on the reference machine: ~213 tests in under a minute.
+Expected shape on the reference machine: ~215 tests in under a minute.
 
 ## What is covered
 
@@ -21,7 +21,8 @@ Expected shape on the reference machine: ~213 tests in under a minute.
   residuals, trade suppression, validation and amounts.
 - Tool harness schemas, argument/result budgets and prompt-injection hygiene.
 - Global indices, macro/geopolitical advice and final advice fusion.
-- Factor store/evolution, custom factors and Factor Forge integration.
+- Factor store/evolution, custom factors, canonical factor coverage, the
+  factor-library CLI and Factor Forge integration.
 - Kairos integration with absent and present checkouts.
 - Dashboard i18n/state helpers and deployment checks.
 - CLI help, non-interactive offline planning and non-TTY error handling.

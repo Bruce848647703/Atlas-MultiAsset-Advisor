@@ -1,0 +1,133 @@
+{
+  "year": 2026,
+  "page_no": 200,
+  "image_file": "",
+  "calendar_month": "2026-02",
+  "calendar_dates": [
+    "2026-02-28"
+  ],
+  "signals": [
+    {
+      "date": "2026-02-28",
+      "signal_name_cn": "现金流收益率",
+      "signal_type_cn": "估值因子",
+      "manual_factor_name": "cashflow_yield",
+      "formula": "CFO_{i,t} / MarketCap_{i,t}",
+      "variables": [],
+      "raw_text": "经营现金流除以市值，衡量股东现金回报的相对价格。现金流收益率越高，未来收益越高，与未来收益正相关。",
+      "confidence_note": "清晰"
+    },
+    {
+      "date": "2026-02-28",
+      "signal_name_cn": "营收同比增速",
+      "signal_type_cn": "成长因子",
+      "manual_factor_name": "sales_growth_yoy",
+      "formula": "(Revenue_t - Revenue_{t-4}) / Revenue_{t-4}",
+      "variables": [],
+      "raw_text": "营业收入同比增长，捕捉基本面扩张。营收增速越高，未来盈利与收益越高，与未来收益正相关。",
+      "confidence_note": "清晰"
+    },
+    {
+      "date": "2026-02-28",
+      "signal_name_cn": "净利润同比增速",
+      "signal_type_cn": "成长因子",
+      "manual_factor_name": "profit_growth_yoy",
+      "formula": "(NetProfit_t - NetProfit_{t-4}) / |NetProfit_{t-4}|",
+      "variables": [],
+      "raw_text": "净利润同比增长，反映盈利动量。净利润增速越高，未来收益越高，与未来收益正相关。",
+      "confidence_note": "清晰"
+    },
+    {
+      "date": "2026-02-28",
+      "signal_name_cn": "ROE稳定性",
+      "signal_type_cn": "质量因子",
+      "manual_factor_name": "roe_std_3y",
+      "formula": "Std(ROE_{t-35:t+1})",
+      "variables": [],
+      "raw_text": "过去三年ROE的标准差，越低代表盈利质量越稳定。ROE波动越大，未来收益越低，与未来收益负相关。",
+      "confidence_note": "清晰"
+    },
+    {
+      "date": "2026-02-28",
+      "signal_name_cn": "资产负债率",
+      "signal_type_cn": "杠杆因子",
+      "manual_factor_name": "debt_assets",
+      "formula": "TotalLiabilities_t / TotalAssets_t",
+      "variables": [],
+      "raw_text": "杠杆越高，财务脆弱性越大，尤其在高利率或下行周期。资产负债率越高，未来收益越低，与未来收益负相关。",
+      "confidence_note": "清晰"
+    },
+    {
+      "date": "2026-02-28",
+      "signal_name_cn": "流动比率",
+      "signal_type_cn": "质量因子",
+      "manual_factor_name": "current_ratio",
+      "formula": "CurrentAssets_t / CurrentLiabilities_t",
+      "variables": [],
+      "raw_text": "短期偿债能力越强，经营韧性越好。流动比率越高，未来收益越高，与未来收益正相关。",
+      "confidence_note": "清晰"
+    },
+    {
+      "date": "2026-02-28",
+      "signal_name_cn": "60日市场beta",
+      "signal_type_cn": "波动率因子",
+      "manual_factor_name": "beta_60d",
+      "formula": "Cov(r_i, r_m) / Var(r_m) over t-59:t",
+      "variables": [],
+      "raw_text": "低beta异象：高beta资产承担更多系统性风险，风险调整后收益反而偏低。beta越高，未来收益越低，与未来收益负相关。",
+      "confidence_note": "清晰"
+    },
+    {
+      "date": "2026-02-28",
+      "signal_name_cn": "60日收益偏度",
+      "signal_type_cn": "行为金融因子-彩票偏好",
+      "manual_factor_name": "skewness_60d",
+      "formula": "Skew(r_{i,t-59:t})",
+      "variables": [],
+      "raw_text": "正偏度资产类似彩票，容易被过度追逐并高估。偏度越高，未来收益越低，与未来收益负相关。",
+      "confidence_note": "清晰"
+    },
+    {
+      "date": "2026-02-28",
+      "signal_name_cn": "6月动量",
+      "signal_type_cn": "动量因子",
+      "manual_factor_name": "momentum_6m",
+      "formula": "Close_{i,t-1} / Close_{i,t-6} - 1",
+      "variables": [],
+      "raw_text": "过去6个月（剔除最近1个月）的价格动量。动量越高，未来收益越高，与未来收益正相关。",
+      "confidence_note": "清晰"
+    },
+    {
+      "date": "2026-02-28",
+      "signal_name_cn": "股息三年增长",
+      "signal_type_cn": "红利因子",
+      "manual_factor_name": "dividend_growth_3y",
+      "formula": "(DPS_t - DPS_{t-3}) / DPS_{t-3}",
+      "variables": [],
+      "raw_text": "股息持续增长代表现金流质量与股东回报意愿。股息增速越高，未来收益越高，与未来收益正相关。",
+      "confidence_note": "清晰"
+    },
+    {
+      "date": "2026-02-28",
+      "signal_name_cn": "分析师盈利上调比例",
+      "signal_type_cn": "分析师因子",
+      "manual_factor_name": "analyst_revision",
+      "formula": "(Up - Down) / TotalAnalysts",
+      "variables": [],
+      "raw_text": "过去一个月盈利预测上调减下调的比例，捕捉预期修正。上调比例越高，未来收益越高，与未来收益正相关。",
+      "confidence_note": "清晰"
+    },
+    {
+      "date": "2026-02-28",
+      "signal_name_cn": "换手率稳定性",
+      "signal_type_cn": "流动性因子",
+      "manual_factor_name": "turnover_stability",
+      "formula": "1 / Std(Turnover_{t-19:t})",
+      "variables": [],
+      "raw_text": "换手率波动越低，交易拥挤与情绪冲击越小。换手率越稳定，未来收益越高，与未来收益正相关。",
+      "confidence_note": "清晰"
+    }
+  ],
+  "page_raw_text": "",
+  "warnings": []
+}

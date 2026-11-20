@@ -5,6 +5,8 @@ holds the engineering details that do not belong in the front page.
 
 - [PORTFOLIO.md](PORTFOLIO.md): optimizer, metrics, walk-forward backtest and
   the rebalance/drift monitor.
+- [FACTORS.md](FACTORS.md): bundled knowledge base, persistent store, lens and
+  the import/update workflow.
 - [OPERATIONS.md](OPERATIONS.md): local runs, Docker, tokens, data caches and
   scheduled jobs.
 - [TESTING.md](TESTING.md): offline test suite, compliance gates and CI jobs.

@@ -20,10 +20,30 @@ def test_direction_mining():
 def test_bundled_factor_library_loads_out_of_the_box():
     default_catalog.cache_clear()
     cat = default_catalog()
-    assert len(cat.factors) >= 10
+    assert len(cat.factors) >= 29
+    assert len(cat.categories) >= 15
     assert "mom_12_1" in cat.factors
     assert "low_vol_60d" in cat.factors
     assert default_data_dir().endswith("examples/factor_library_sample")
+
+
+def test_bundled_catalog_includes_canonical_fundamental_factors():
+    default_catalog.cache_clear()
+    cat = default_catalog()
+    expected = {
+        "cashflow_yield": ("估值因子", 1),
+        "sales_growth_yoy": ("成长因子", 1),
+        "roe_std_3y": ("质量因子", -1),
+        "debt_assets": ("杠杆因子", -1),
+        "beta_60d": ("波动率因子", -1),
+        "skewness_60d": ("行为金融因子-彩票偏好", -1),
+        "analyst_revision": ("分析师因子", 1),
+    }
+    for name, (category, direction) in expected.items():
+        factor = cat.factors[name]
+        assert factor.category == category
+        assert factor.direction == direction
+        assert factor.formula
 
 
 def test_load_missing_dir_returns_empty():

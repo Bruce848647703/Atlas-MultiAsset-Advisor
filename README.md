@@ -340,7 +340,7 @@ quarantined instead of being silently overwritten.
 
 ### Factor Library Fusion (1000+ quant factors) ★
 
-`invest_agent/factors/` fuses a factor library. **A 17-factor / 12-category
+`invest_agent/factors/` fuses a factor library. **A 29-factor / 15-category
 sample ships in `examples/factor_library_sample` and loads by default**, so the
 knowledge base and factor lens work immediately after checkout. The full
 `signal-name/data/json` library is:
@@ -502,11 +502,11 @@ scripts/run_demo.py         dashboard/app.py (streamlit)
 scripts/kairos_strategy_lab.py     # CLI: strategy leaderboard / single curve
 scripts/factor_forge_import.py     # CLI: report brief -> Factor JSON/code -> store
 scripts/rebalance_check.py         # CLI: target vs current weights -> drift/trades
-docs/               # architecture, portfolio math, operations and testing notes
+docs/               # architecture, portfolio math, factors, operations and testing
 training/         # README / generate_sft_data.py / build_real_dataset.py /
                   # eval/(compliance + requirement benchmark) / finetune/
 examples/factor_library_sample/  # factor-library sample (full lib: ATLAS_FACTOR_DIR)
-tests/            # 213 tests (offline, synthetic provider)
+tests/            # 215 tests (offline, synthetic provider)
 .streamlit/config.toml + dashboard/style.py  # Jane Street-style light theme
 dashboard/i18n.py  # zh-Hans / en / zh-Hant UI catalog + entity labels
 .github/workflows/ci.yml  # GitHub Actions: lint + tests (3.10/3.12/3.13) + gates

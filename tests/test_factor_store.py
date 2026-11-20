@@ -65,3 +65,18 @@ def test_atomic_write_leaves_no_temp_files(tmp_path, monkeypatch):
     _isolate(tmp_path, monkeypatch)
     fs.add_factor("x", "test", "empirical")
     assert not list(tmp_path.glob(".factor_store.*.tmp"))
+
+def test_factor_library_cli_reports_stats():
+    import json
+    import subprocess
+    import sys
+
+    root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [sys.executable, "scripts/import_factor_library.py", "--stats", "--json"],
+        cwd=root, capture_output=True, text=True, check=False,
+    )
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["total"] > 0
+    assert "knowledge_base" in payload["by_source"]
