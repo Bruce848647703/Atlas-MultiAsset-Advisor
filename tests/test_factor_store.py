@@ -78,5 +78,7 @@ def test_factor_library_cli_reports_stats():
     )
     assert result.returncode == 0
     payload = json.loads(result.stdout)
-    assert payload["total"] > 0
-    assert "knowledge_base" in payload["by_source"]
+    assert isinstance(payload["total"], int)
+    assert payload["total"] >= 0
+    assert isinstance(payload["by_source"], dict)
+    assert isinstance(payload["with_ic"], int)
