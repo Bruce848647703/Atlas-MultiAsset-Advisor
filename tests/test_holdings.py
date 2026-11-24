@@ -32,6 +32,14 @@ def test_duplicate_symbols_aggregate():
     assert csi["accounts"] == ["a", "b"]
 
 
+def test_formatted_numbers_and_currency_symbols():
+    xray = holdings.parse_holdings([{
+        "symbol": "510300", "market_value": "¥150,000.50", "currency": "CNY",
+    }])
+    assert xray["available"] is True
+    assert xray["total_value"] == 150000.5
+
+
 def test_unknown_symbol_is_rejected():
     xray = holdings.parse_holdings(
         [{"symbol": "NOT_A_REAL_TICKER", "market_value": "1000"}])
