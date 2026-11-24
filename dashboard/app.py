@@ -562,6 +562,8 @@ if run:
             )
         res["_signature"] = _input_signature()
         st.session_state["atlas_result"] = res
+        # simulation belongs to the previous plan
+        st.session_state.pop("atlas_mc", None)
     except InputValidationError as e:
         st.error(str(e))
     except Exception as e:  # noqa: BLE001 - friendly error instead of traceback
@@ -961,6 +963,79 @@ with st.expander(t("holdings.title", lang), expanded=False):
                 } for r in _trade_rows], hide_index=True, use_container_width=True)
             else:
                 st.info(t("holdings.no_trades", lang))
+
+with st.expander(t("mc.title", lang), expanded=False):
+    from invest_agent.portfolio import monte_carlo as mc_lib  # noqa: E402
+    st.caption(t("mc.intro", lang))
+    _mc1, _mc2, _mc3, _mc4 = st.columns(4)
+    with _mc1:
+        _mc_paths = st.selectbox(
+            t("mc.paths", lang), [500, 1000, 2000, 5000],
+            index=[500, 1000, 2000, 5000].index(
+                int(st.session_state.get("mc_paths_persist", 2000))),
+            format_func=lambda x: f"{x:,}", key="mc_paths")
+        st.session_state["mc_paths_persist"] = _mc_paths
+    with _mc2:
+        _mc_years = st.slider(
+            t("mc.horizon", lang), 1, 30,
+            int(st.session_state.get("mc_years_persist",
+                                     min(max(plan.profile.horizon_years, 1), 30))),
+            key="mc_years")
+        st.session_state["mc_years_persist"] = _mc_years
+    with _mc3:
+        _mc_method = st.selectbox(
+            t("mc.method", lang), ["bootstrap", "parametric"],
+            index=["bootstrap", "parametric"].index(
+                st.session_state.get("mc_method_persist", "bootstrap")),
+            format_func=lambda x: t(f"mc.{x}", lang), key="mc_method")
+        st.session_state["mc_method_persist"] = _mc_method
+    with _mc4:
+        _mc_target = st.number_input(
+            t("mc.target", lang), min_value=0, max_value=10**12,
+            value=int(st.session_state.get("mc_target_persist", 0)),
+            step=100_000, key="mc_target")
+        st.session_state["mc_target_persist"] = _mc_target
+    if st.button(t("mc.run", lang), key="mc_run_btn"):
+        with st.spinner(t("mc.spinner", lang)):
+            try:
+                _sim = mc_lib.simulate_plan(
+                    plan, n_paths=int(_mc_paths), horizon_years=int(_mc_years),
+                    method=_mc_method, target_value=float(_mc_target))
+                _stress = mc_lib.stress_scenarios(plan)
+                st.session_state["atlas_mc"] = {"sim": _sim, "stress": _stress}
+            except Exception as _mce:  # noqa: BLE001
+                st.warning(t("mc.error", lang, err=_mce))
+    _mcpack = st.session_state.get("atlas_mc")
+    if _mcpack:
+        _sim, _stress = _mcpack["sim"], _mcpack["stress"]
+        _t = _sim["terminal"]
+        _p = _sim["probability"]
+        _dd = _sim["drawdown"]
+        st.markdown(f"**{t('mc.results', lang)}**")
+        _r1, _r2, _r3, _r4, _r5, _r6 = st.columns(6)
+        _r1.metric(t("mc.median", lang), f"¥{_t['p50']:,.0f}")
+        _r2.metric(t("mc.p05", lang), f"¥{_t['p05']:,.0f}")
+        _r3.metric(t("mc.p95", lang), f"¥{_t['p95']:,.0f}")
+        _r4.metric(t("mc.prob_loss", lang), f"{_p['loss']:.1%}")
+        _r5.metric(t("mc.median_dd", lang), f"{_dd['p50']:.1%}")
+        _r6.metric(t("mc.p95_dd", lang), f"{_dd['p95']:.1%}")
+        if _p.get("goal") is not None:
+            st.caption(t("mc.prob_goal", lang) + f": **{_p['goal']:.1%}** · "
+                       + t("mc.var", lang)
+                       + f": ¥{_sim['profit']['var_95']:,.0f} / ¥{_sim['profit']['es_95']:,.0f}")
+        import pandas as _pd  # noqa: E402
+        _fan = {f"p{p['percentile']:02d}": p["values"] for p in _sim["fan"]}
+        st.caption(t("mc.fan", lang))
+        st.line_chart(_pd.DataFrame(_fan, index=_sim["months"]), height=260)
+        st.markdown(f"**{t('mc.scenarios', lang)}**")
+        st.dataframe([{
+            t("mc.scenario", lang): (r["name_en"] if lang == "en"
+                                     else pick(r["name_zh"], r["name_en"], lang)),
+            t("mc.shock", lang): f"{r['portfolio_shock']:+.1%}",
+            t("mc.after", lang): f"¥{r['value_after']:,.0f}",
+            t("mc.loss", lang): f"¥{r['loss']:,.0f}",
+        } for r in _stress["rows"]], hide_index=True, use_container_width=True)
+        st.caption(t("mc.note", lang))
 
 st.subheader(t("universe.title", lang))
 st.caption(t("universe.intro", lang))
@@ -1454,13 +1529,15 @@ with st.expander(t("report.title", lang)):
     _cc_rep = st.session_state.get("atlas_council")
     _cc_rep = _cc_rep if (_cc_rep and not _cc_rep.get("error")) else None
     if ((_fa_rep and not _fa_rep.get("error")) or _cc_rep
-            or lang == "en" or st.session_state.get("atlas_holdings")):
+            or lang == "en" or st.session_state.get("atlas_holdings")
+            or st.session_state.get("atlas_mc")):
         from invest_agent.report import build_report as _br  # noqa: E402
         _rep_src = _br(plan, res["charts"],
                        lang="en" if lang == "en" else "zh",
                        final_advice=(_fa_rep if _fa_rep and not _fa_rep.get("error") else None),
                        analyst_council=_cc_rep,
-                       holdings=st.session_state.get("atlas_holdings"))
+                       holdings=st.session_state.get("atlas_holdings"),
+                       monte_carlo=st.session_state.get("atlas_mc"))
     else:
         _rep_src = res["report"]
     _report_text = _re.sub(r"!\[([^\]]*)\]\(([^)]+)\)", _embed, _rep_src)

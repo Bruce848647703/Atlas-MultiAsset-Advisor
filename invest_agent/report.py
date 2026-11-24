@@ -198,6 +198,56 @@ def _render_holdings_en(holdings: Dict, plan: Plan) -> str:
     return "\n".join(L)
 
 
+def _render_monte_carlo_zh(mc: Dict) -> str:
+    sim, stress = mc.get("sim") or {}, mc.get("stress") or {}
+    if not sim.get("available"):
+        return ""
+    t, p, dd, pr = sim["terminal"], sim["probability"], sim["drawdown"], sim["profit"]
+    L = ["## Monte Carlo 与情景压力测试\n",
+         "| 指标 | 数值 |\n|---|---|",
+         f"| 终值 5% / 50% / 95% | ¥{t['p05']:,.0f} / ¥{t['p50']:,.0f} / ¥{t['p95']:,.0f} |",
+         f"| 亏损概率 | {p['loss']:.1%} |",
+         f"| 最大回撤中位数 / 95% | {dd['p50']:.1%} / {dd['p95']:.1%} |",
+         f"| 95% VaR / ES | ¥{pr['var_95']:,.0f} / ¥{pr['es_95']:,.0f} |"]
+    if p.get("goal") is not None:
+        L.append(f"| 目标达成概率 | {p['goal']:.1%} |")
+    L.append(f"\n_方法: {sim['method']} · {sim['n_paths']:,} 条路径 · "
+             f"{sim['horizon_years']} 年 · seed={sim['seed']}_\n")
+    if stress.get("rows"):
+        L.append("| 情景 | 组合冲击 | 冲击后价值 | 损失 |")
+        L.append("|---|---|---|---|")
+        for r in stress["rows"]:
+            L.append(f"| {r['name_zh']} | {r['portfolio_shock']:+.1%} "
+                     f"| ¥{r['value_after']:,.0f} | ¥{r['loss']:,.0f} |")
+        L.append("")
+    return "\n".join(L)
+
+
+def _render_monte_carlo_en(mc: Dict) -> str:
+    sim, stress = mc.get("sim") or {}, mc.get("stress") or {}
+    if not sim.get("available"):
+        return ""
+    t, p, dd, pr = sim["terminal"], sim["probability"], sim["drawdown"], sim["profit"]
+    L = ["## Monte Carlo & Stress Test\n",
+         "| Metric | Value |\n|---|---|",
+         f"| Terminal 5% / 50% / 95% | ¥{t['p05']:,.0f} / ¥{t['p50']:,.0f} / ¥{t['p95']:,.0f} |",
+         f"| Probability of loss | {p['loss']:.1%} |",
+         f"| Median / 95% max drawdown | {dd['p50']:.1%} / {dd['p95']:.1%} |",
+         f"| 95% VaR / ES | ¥{pr['var_95']:,.0f} / ¥{pr['es_95']:,.0f} |"]
+    if p.get("goal") is not None:
+        L.append(f"| Goal probability | {p['goal']:.1%} |")
+    L.append(f"\n_Method: {sim['method']} · {sim['n_paths']:,} paths · "
+             f"{sim['horizon_years']} years · seed={sim['seed']}_\n")
+    if stress.get("rows"):
+        L.append("| Scenario | Portfolio shock | Value after | Loss |")
+        L.append("|---|---|---|---|")
+        for r in stress["rows"]:
+            L.append(f"| {r['name_en']} | {r['portfolio_shock']:+.1%} "
+                     f"| ¥{r['value_after']:,.0f} | ¥{r['loss']:,.0f} |")
+        L.append("")
+    return "\n".join(L)
+
+
 def _metrics_table_en(plan: Plan) -> str:
     m, b = plan.backtest, {} if not plan.bench_backtest else plan.bench_backtest
     rows = [
@@ -224,7 +274,8 @@ def _metrics_table_en(plan: Plan) -> str:
 def _build_report_en(plan: Plan, chart_paths: Optional[Dict[str, str]],
                      final_advice: Optional[Dict],
                      analyst_council: Optional[Dict],
-                     holdings: Optional[Dict] = None) -> str:
+                     holdings: Optional[Dict] = None,
+                     monte_carlo: Optional[Dict] = None) -> str:
     """English report from the same deterministic plan data (no Chinese prose)."""
     from .data.universe import build_universe as _bu
     from .global_base import GLOBAL_BASES
@@ -368,6 +419,9 @@ def _build_report_en(plan: Plan, chart_paths: Optional[Dict[str, str]],
         L.append(f"\n_Source: {k.get('source', 'kairos-risk')}, "
                  f"{k.get('observations', 0)} monthly observations._\n")
 
+    if monte_carlo:
+        L.append(_render_monte_carlo_en(monte_carlo))
+
     L.append("## 3. Goal Projection\n")
     last = plan.projection[-1] if plan.projection else None
     if last:
@@ -397,10 +451,11 @@ def _build_report_en(plan: Plan, chart_paths: Optional[Dict[str, str]],
 def build_report(plan: Plan, chart_paths: Optional[Dict[str, str]] = None,
                  lang: str = "zh", final_advice: Optional[Dict] = None,
                  analyst_council: Optional[Dict] = None,
-                 holdings: Optional[Dict] = None) -> str:
+                 holdings: Optional[Dict] = None,
+                 monte_carlo: Optional[Dict] = None) -> str:
     if lang == "en":
         return _build_report_en(plan, chart_paths, final_advice, analyst_council,
-                                holdings=holdings)
+                                holdings=holdings, monte_carlo=monte_carlo)
     cfg = get_config()
     disclaimer = cfg["agent"]["disclaimer"].strip()
     name_of = {a.id: a.name_en for a in plan.assets}
@@ -490,6 +545,9 @@ def build_report(plan: Plan, chart_paths: Optional[Dict[str, str]] = None,
                 f"{c} {v:.0%}" for c, v in sorted(k["class_risk"].items(),
                                                  key=lambda kv: -kv[1])) + " |")
         L.append(f"\n_来源: {k.get('source', 'kairos-risk')}，基于 {k.get('observations', 0)} 个月度观测。_\n")
+
+    if monte_carlo:
+        L.append(_render_monte_carlo_zh(monte_carlo))
 
     L.append("## 3. 目标投射 Goal Projection\n")
     last = plan.projection[-1] if plan.projection else None

@@ -59,7 +59,7 @@ optimizer level, double-checked at the report level.
 
 Key principle: **the quant core is fully deterministic** (plans work with no LLM —
 easy to unit-test and generate training data). **The LLM is the conversational
-interface**, driving the core through **23 tools**:
+interface**, driving the core through **24 tools**:
 
 | Tool | Purpose |
 |---|---|
@@ -85,6 +85,7 @@ interface**, driving the core through **23 tools**:
 | `factor_forge_from_text` | Report brief → structured factor + executable code + sample validation; optionally write into the Atlas factor store |
 | `screen_assets_by_custom_factors` | Cross-sectional composite score from forged close-based factors (IC/direction weighted) |
 | `analyze_holdings` | Holdings X-Ray + target drift + rebalance trades + suitability checks |
+| `run_monte_carlo` | Wealth-path simulation + goal probability + drawdown/VaR + scenario stress |
 | `explain_product` | Product risk education (risk first, return second) |
 
 ### Kairos Ecosystem Integration ★ (`integrations/kairos.py`)
@@ -386,6 +387,23 @@ CASH,50000,CNY,1,,,brokerA
 - Invalid rows (unknown ticker, missing value, non-CNY without FX, non-positive
   market value) are reported with row numbers; nothing is silently guessed.
 
+### Monte Carlo & Stress Test ★ (`portfolio/monte_carlo.py`)
+
+The plan's walk-forward monthly return series drives seeded wealth-path
+simulation:
+
+- **Engines**: circular block bootstrap (preserves volatility clustering) and
+  parametric Student-t.
+- **Outputs**: terminal wealth 5/25/50/75/95%, probability of loss, optional
+  goal-attainment probability, max-drawdown distribution, 95% VaR/ES, and a
+  monthly percentile fan chart.
+- **Scenarios**: equity −20%, rates +100bp, crypto −50%, CNY −10%,
+  stagflation; each reports portfolio shock, value after, loss and class
+  contributions.
+- **Surfaces**: dashboard panel, Chinese/English report sections, and the
+  `run_monte_carlo` LLM tool (24th tool). Invalid path counts, horizons,
+  methods and targets return readable errors.
+
 ### Strategy Layer (amplify strengths, don't pile assets) ★
 
 Rather than cramming 26 assets into one portfolio, six philosophy-driven strategies, each with:
@@ -420,7 +438,7 @@ pip install -r requirements.txt          # numpy/pandas/scipy/matplotlib/openai/
 
 make demo        # offline demo: mass / affluent / HNW → examples/demo_outputs/
 make lint        # ruff static checks (pip install -r requirements-dev.txt)
-make test        # unit + integration tests (223)
+make test        # unit + integration tests (228)
 make eval        # compliance gate (weight legality / caps / disclaimer / segment access)
 make sft         # generate 400 SFT conversations → training/sft_data/train.jsonl
 
@@ -517,7 +535,7 @@ invest_agent/
                   #   backtest(walk-forward) / tactical(momentum+trend gate) /
                   #   rebalance(target-vs-current drift monitor)
   data/           # base / synthetic / akshare / kairos / universe (26 assets)
-  tools/          # 23 tools exposed to the LLM
+  tools/          # 24 tools exposed to the LLM
   charts.py, report.py, cli.py
 config/           # assets.yaml, risk_profiles.yaml, agent.yaml
 integrations/kairos_strategies.py  # ★ 106-strategy lab / cached leaderboard
@@ -529,7 +547,7 @@ docs/               # architecture, portfolio math, factors, operations and test
 training/         # README / generate_sft_data.py / build_real_dataset.py /
                   # eval/(compliance + requirement benchmark) / finetune/
 examples/factor_library_sample/  # factor-library sample (full lib: ATLAS_FACTOR_DIR)
-tests/            # 223 tests (offline, synthetic provider)
+tests/            # 228 tests (offline, synthetic provider)
 .streamlit/config.toml + dashboard/style.py  # Jane Street-style light theme
 dashboard/i18n.py  # zh-Hans / en / zh-Hant UI catalog + entity labels
 .github/workflows/ci.yml  # GitHub Actions: lint + tests (3.10/3.12/3.13) + gates

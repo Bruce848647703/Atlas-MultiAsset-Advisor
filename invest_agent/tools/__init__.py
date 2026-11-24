@@ -547,6 +547,30 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
         except Exception as e:  # noqa: BLE001
             return {"error": f"custom factor scores unavailable: {e}"}
 
+    def run_monte_carlo(args: Dict[str, Any]) -> Dict[str, Any]:
+        """模拟当前方案的财富路径，并返回情景压力测试。"""
+        if ctx.plan is None:
+            return {"error": "请先生成配置方案 (build_investment_plan)。"}
+        try:
+            from ..portfolio import monte_carlo
+            n_paths = integer(args.get("n_paths", 2000), "模拟路径数 n_paths",
+                              minimum=100, maximum=20000)
+            horizon = integer(args.get("horizon_years", ctx.plan.profile.horizon_years),
+                              "期限 horizon_years", minimum=1, maximum=50)
+            method = text_value(args.get("method", "bootstrap"), "模拟方法 method",
+                                max_chars=20) or "bootstrap"
+            target = finite_number(args.get("target_value", 0.0), "目标金额 target_value",
+                                   minimum=0.0, maximum=1e15)
+            sim = monte_carlo.simulate_plan(
+                ctx.plan, n_paths=n_paths, horizon_years=horizon,
+                method=method, target_value=target)
+            return {"simulation": sim,
+                    "scenarios": monte_carlo.stress_scenarios(ctx.plan)}
+        except (ValueError, InputValidationError) as e:
+            return {"error": str(e)}
+        except Exception as e:  # noqa: BLE001
+            return {"error": f"monte carlo failed: {e}"}
+
     def analyze_holdings(args: Dict[str, Any]) -> Dict[str, Any]:
         """导入持仓行 -> X-Ray + 与当前方案的漂移/再平衡清单。"""
         try:
@@ -692,6 +716,14 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
            "import": {"type": "boolean", "description": "是否写入因子库, 默认 true"},
            "overwrite": {"type": "boolean", "description": "同名因子是否覆盖"}},
           ["text"], factor_forge_from_text),
+        T("run_monte_carlo",
+          "对当前方案做 Monte Carlo 财富路径模拟（bootstrap / parametric t）并返回情景压力测试："
+          "终值分位、目标达成概率、亏损概率、最大回撤分布、VaR/ES，以及股票/利率/加密/汇率冲击。",
+          {"n_paths": {"type": "integer", "minimum": 100, "maximum": 20000},
+           "horizon_years": {"type": "integer", "minimum": 1, "maximum": 50},
+           "method": {"type": "string", "enum": ["bootstrap", "parametric"]},
+           "target_value": {"type": "number", "minimum": 0}},
+          [], run_monte_carlo),
         T("analyze_holdings",
           "导入当前持仓并对照目标方案：计算组合 X-Ray（类别/集中度/币种）、"
           "权重漂移、再平衡买卖清单、交易成本与适当性违规。"
