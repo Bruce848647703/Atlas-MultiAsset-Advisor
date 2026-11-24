@@ -26,7 +26,7 @@ Reproducible failures belong in the Bug report form. See [`FEEDBACK.md`](FEEDBAC
 
 ```bash
 make lint    # ruff (pyflakes + high-signal pycodestyle)
-make test    # 222 tests, fully offline (synthetic provider)
+make test    # 223 tests, fully offline (synthetic provider)
 make eval    # suitability caps / disclaimer / requirement-understanding gates
 ```
 

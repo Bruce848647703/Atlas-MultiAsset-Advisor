@@ -57,8 +57,10 @@ def _key(row: Dict[str, Any], name: str) -> Any:
 def _num(value: Any, field: str, errors: List[str], row_no: int) -> Optional[float]:
     if value in (None, "", "—"):
         return None
+    cleaned = str(value).replace(",", "").replace("，", "")
+    cleaned = cleaned.replace("¥", "").replace("￥", "").replace("$", "").strip()
     try:
-        number = float(value)
+        number = float(cleaned)
     except (TypeError, ValueError):
         errors.append(f"row {row_no}: {field} 不是数字 ({value!r})")
         return None
