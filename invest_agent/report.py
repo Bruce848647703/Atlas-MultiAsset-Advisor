@@ -134,6 +134,70 @@ _EN_DIVERGENCE = {
 }
 
 
+def _render_holdings_zh(holdings: Dict, plan: Plan) -> str:
+    from .portfolio.holdings import drift_analysis
+
+    hd = drift_analysis(holdings, plan)
+    if not hd.get("available"):
+        return ""
+    name_of = {a.id: a.name_zh for a in plan.assets}
+    name_of.update({h["asset_id"]: h["name_zh"] for h in holdings.get("holdings", [])})
+    L = ["## 持仓 X-Ray 与漂移监控 Holdings X-Ray\n",
+         f"- 组合总市值: **¥{holdings['total_value']:,.0f}**",
+         f"- 最大单一持仓: **{holdings['concentration']['top1']:.1%}** · "
+         f"有效持仓数 {holdings['concentration']['effective_n']:.1f}",
+         f"- 到目标换手: **{hd['turnover']:.1%}** · 预计交易成本 **¥{hd['estimated_cost']:,.0f}**"]
+    if hd.get("violations"):
+        L.append("- ⚠ 当前类别超出适当性上限: " + "、".join(
+            f"{r['class']}({r['current_weight']:.1%}>{r['cap']:.0%})"
+            for r in hd["violations"]))
+    L.append("")
+    L.append("| 资产 | 当前权重 | 目标权重 | 漂移 | 交易金额 | 动作 |")
+    L.append("|---|---|---|---|---|---|")
+    rows = hd["asset_alerts"] or [r for r in hd["rows"] if r["action"] != "HOLD"]
+    for r in rows:
+        L.append(f"| {name_of.get(r['asset_id'], r['asset_id'])} "
+                 f"| {r['current_weight']:.1%} | {r['target_weight']:.1%} "
+                 f"| {r['drift']:+.1%} | ¥{r['trade_value']:,.0f} | {r['action']} |")
+    if not rows:
+        L.append("| — | — | — | — | — | 保持 |")
+    L.append("")
+    return "\n".join(L)
+
+
+def _render_holdings_en(holdings: Dict, plan: Plan) -> str:
+    from .portfolio.holdings import drift_analysis
+
+    hd = drift_analysis(holdings, plan)
+    if not hd.get("available"):
+        return ""
+    name_of = {a.id: a.name_en for a in plan.assets}
+    name_of.update({h["asset_id"]: h["name_en"] for h in holdings.get("holdings", [])})
+    L = ["## Holdings X-Ray & Drift\n",
+         f"- Total value: **¥{holdings['total_value']:,.0f}**",
+         f"- Largest holding: **{holdings['concentration']['top1']:.1%}** · "
+         f"effective N {holdings['concentration']['effective_n']:.1f}",
+         f"- Turnover to target: **{hd['turnover']:.1%}** · "
+         f"estimated cost **¥{hd['estimated_cost']:,.0f}**"]
+    if hd.get("violations"):
+        L.append("- ⚠ Current class exposure exceeds suitability caps: " + ", ".join(
+            f"{_EN_CLASS.get(r['class'], r['class'])} "
+            f"({r['current_weight']:.1%} > {r['cap']:.0%})"
+            for r in hd["violations"]))
+    L.append("")
+    L.append("| Asset | Current | Target | Drift | Trade value | Action |")
+    L.append("|---|---|---|---|---|---|")
+    rows = hd["asset_alerts"] or [r for r in hd["rows"] if r["action"] != "HOLD"]
+    for r in rows:
+        L.append(f"| {name_of.get(r['asset_id'], r['asset_id'])} "
+                 f"| {r['current_weight']:.1%} | {r['target_weight']:.1%} "
+                 f"| {r['drift']:+.1%} | ¥{r['trade_value']:,.0f} | {r['action']} |")
+    if not rows:
+        L.append("| — | — | — | — | — | HOLD |")
+    L.append("")
+    return "\n".join(L)
+
+
 def _metrics_table_en(plan: Plan) -> str:
     m, b = plan.backtest, {} if not plan.bench_backtest else plan.bench_backtest
     rows = [
@@ -159,7 +223,8 @@ def _metrics_table_en(plan: Plan) -> str:
 
 def _build_report_en(plan: Plan, chart_paths: Optional[Dict[str, str]],
                      final_advice: Optional[Dict],
-                     analyst_council: Optional[Dict]) -> str:
+                     analyst_council: Optional[Dict],
+                     holdings: Optional[Dict] = None) -> str:
     """English report from the same deterministic plan data (no Chinese prose)."""
     from .data.universe import build_universe as _bu
     from .global_base import GLOBAL_BASES
@@ -280,6 +345,9 @@ def _build_report_en(plan: Plan, chart_paths: Optional[Dict[str, str]],
         L.append("Eligible but not allocated this time (with caps): " +
                  "; ".join(f"{n} ({c} ≤ {_fmt_pct(cap, 0)})" for n, c, cap in zero) + "\n")
 
+    if holdings:
+        L.append(_render_holdings_en(holdings, plan))
+
     L.append("## 2. Historical Backtest (walk-forward, no look-ahead)\n")
     L.append(_metrics_table_en(plan) + "\n")
 
@@ -328,9 +396,11 @@ def _build_report_en(plan: Plan, chart_paths: Optional[Dict[str, str]],
 
 def build_report(plan: Plan, chart_paths: Optional[Dict[str, str]] = None,
                  lang: str = "zh", final_advice: Optional[Dict] = None,
-                 analyst_council: Optional[Dict] = None) -> str:
+                 analyst_council: Optional[Dict] = None,
+                 holdings: Optional[Dict] = None) -> str:
     if lang == "en":
-        return _build_report_en(plan, chart_paths, final_advice, analyst_council)
+        return _build_report_en(plan, chart_paths, final_advice, analyst_council,
+                                holdings=holdings)
     cfg = get_config()
     disclaimer = cfg["agent"]["disclaimer"].strip()
     name_of = {a.id: a.name_en for a in plan.assets}
@@ -398,6 +468,9 @@ def build_report(plan: Plan, chart_paths: Optional[Dict[str, str]] = None,
     if zero:
         L.append("可投但本次未配置的资产（可及上限）: " +
                  "; ".join(f"{n}({c}≤{_fmt_pct(cap, 0)})" for n, c, cap in zero) + "\n")
+
+    if holdings:
+        L.append(_render_holdings_zh(holdings, plan))
 
     L.append("## 2. 历史回测 Backtest（样本外走查·无未来函数，按策略调仓频率）\n")
     L.append(metrics_table(plan) + "\n")

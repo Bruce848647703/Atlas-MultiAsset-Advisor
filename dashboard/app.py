@@ -872,6 +872,96 @@ st.dataframe(
     hide_index=True, use_container_width=True,
 )
 
+with st.expander(t("holdings.title", lang), expanded=False):
+    from invest_agent.portfolio import holdings as holdings_lib  # noqa: E402
+    st.caption(t("holdings.intro", lang))
+    st.download_button(
+        t("holdings.template", lang),
+        holdings_lib.csv_template(),
+        file_name="atlas_holdings_template.csv",
+        mime="text/csv",
+        key="holdings_template",
+    )
+    _hfile = st.file_uploader(t("holdings.upload", lang), type=["csv"],
+                              key="holdings_csv")
+    if st.button(t("holdings.parse", lang), key="holdings_parse"):
+        if _hfile is None:
+            st.warning(t("holdings.no_file", lang))
+        else:
+            with st.spinner(t("holdings.spinner", lang)):
+                try:
+                    _hrows = holdings_lib.parse_csv(_hfile.getvalue())
+                    st.session_state["atlas_holdings"] = holdings_lib.parse_holdings(_hrows)
+                except Exception as _he:  # noqa: BLE001
+                    st.session_state["atlas_holdings"] = {
+                        "available": False, "errors": [str(_he)],
+                        "warnings": [], "holdings": [],
+                    }
+    _hx = st.session_state.get("atlas_holdings")
+    if _hx:
+        if _hx.get("errors"):
+            st.error(t("holdings.errors", lang) + "\n" +
+                     "\n".join(f"- {e}" for e in _hx["errors"]))
+        if _hx.get("warnings"):
+            st.caption(t("holdings.warnings", lang) + " " + "; ".join(_hx["warnings"][:6]))
+        if _hx.get("available"):
+            _hd = holdings_lib.drift_analysis(_hx, plan)
+            _hc1, _hc2, _hc3, _hc4, _hc5 = st.columns(5)
+            _hc1.metric(t("holdings.total", lang), f"¥{_hx['total_value']:,.0f}")
+            _hc2.metric(t("holdings.top1", lang),
+                        f"{_hx['concentration']['top1']:.1%}")
+            _hc3.metric(t("holdings.effn", lang),
+                        f"{_hx['concentration']['effective_n']:.1f}")
+            _hc4.metric(t("holdings.turnover", lang), f"{_hd['turnover']:.1%}")
+            _hc5.metric(t("holdings.cost", lang), f"¥{_hd['estimated_cost']:,.0f}")
+            if _hd.get("violations"):
+                _vcls = ", ".join(class_label(r["class"], lang) for r in _hd["violations"])
+                st.warning(t("holdings.violations", lang, classes=_vcls))
+
+            _hname = {a.id: asset_name(a, lang) for a in plan.assets}
+            _hname.update({h["asset_id"]: (h.get("name_en") if lang == "en"
+                                           else pick(h.get("name_zh", ""),
+                                                     h.get("name_en", ""), lang))
+                           for h in _hx["holdings"]})
+            st.markdown(f"**{t('holdings.current', lang)}**")
+            st.dataframe([{
+                t("holdings.asset", lang): _hname[h["asset_id"]],
+                t("holdings.class", lang): class_label(h["class"], lang),
+                t("holdings.weight", lang): f"{h['weight']:.1%}",
+                t("holdings.value", lang): f"¥{h['market_value']:,.0f}",
+                t("holdings.pnl", lang): "—" if h.get("pnl_pct") is None
+                else f"{h['pnl_pct']:+.1%}",
+            } for h in _hx["holdings"]], hide_index=True, use_container_width=True)
+
+            st.markdown(f"**{t('holdings.class_table', lang)}**")
+            st.dataframe([{
+                t("holdings.class", lang): class_label(r["class"], lang),
+                t("holdings.weight", lang): f"{r['current_weight']:.1%}",
+                t("holdings.target", lang): f"{r['target_weight']:.1%}",
+                t("holdings.cap", lang): f"{r['cap']:.0%}",
+                t("holdings.drift", lang): f"{r['drift']:+.1%}",
+                "⚠": "⚠" if r["violates_cap"] else "",
+            } for r in _hd["class_rows"]], hide_index=True, use_container_width=True)
+
+            _trade_rows = _hd["asset_alerts"] or [
+                r for r in _hd["rows"] if r["action"] != "HOLD"]
+            if _trade_rows:
+                st.markdown(f"**{t('holdings.drift_table', lang)}**")
+                _action_lbl = {"BUY": t("holdings.buy", lang),
+                               "SELL": t("holdings.sell", lang),
+                               "HOLD": t("holdings.hold", lang)}
+                st.dataframe([{
+                    t("holdings.asset", lang): _hname.get(r["asset_id"], r["asset_id"]),
+                    t("holdings.weight", lang): f"{r['current_weight']:.1%}",
+                    t("holdings.target", lang): f"{r['target_weight']:.1%}",
+                    t("holdings.drift", lang): f"{r['drift']:+.1%}",
+                    t("holdings.trade", lang): f"¥{r['trade_value']:,.0f}",
+                    t("holdings.action", lang): _action_lbl.get(r["action"], r["action"]),
+                    t("holdings.cost", lang): f"¥{r['estimated_cost']:,.0f}",
+                } for r in _trade_rows], hide_index=True, use_container_width=True)
+            else:
+                st.info(t("holdings.no_trades", lang))
+
 st.subheader(t("universe.title", lang))
 st.caption(t("universe.intro", lang))
 from invest_agent.config import client_segments  # noqa: E402
@@ -1363,12 +1453,14 @@ with st.expander(t("report.title", lang)):
     _fa_rep = st.session_state.get("atlas_final_advice")
     _cc_rep = st.session_state.get("atlas_council")
     _cc_rep = _cc_rep if (_cc_rep and not _cc_rep.get("error")) else None
-    if (_fa_rep and not _fa_rep.get("error")) or _cc_rep or lang == "en":
+    if ((_fa_rep and not _fa_rep.get("error")) or _cc_rep
+            or lang == "en" or st.session_state.get("atlas_holdings")):
         from invest_agent.report import build_report as _br  # noqa: E402
         _rep_src = _br(plan, res["charts"],
                        lang="en" if lang == "en" else "zh",
                        final_advice=(_fa_rep if _fa_rep and not _fa_rep.get("error") else None),
-                       analyst_council=_cc_rep)
+                       analyst_council=_cc_rep,
+                       holdings=st.session_state.get("atlas_holdings"))
     else:
         _rep_src = res["report"]
     _report_text = _re.sub(r"!\[([^\]]*)\]\(([^)]+)\)", _embed, _rep_src)

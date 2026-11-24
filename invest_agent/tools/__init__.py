@@ -547,6 +547,25 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
         except Exception as e:  # noqa: BLE001
             return {"error": f"custom factor scores unavailable: {e}"}
 
+    def analyze_holdings(args: Dict[str, Any]) -> Dict[str, Any]:
+        """导入持仓行 -> X-Ray + 与当前方案的漂移/再平衡清单。"""
+        try:
+            from ..portfolio import holdings as holdings_lib
+            rows = args.get("holdings")
+            if not isinstance(rows, list) or not rows:
+                return {"error": "holdings 必须是非空的行数组，如 "
+                                 "[{\"symbol\":\"510300\",\"market_value\":150000}]"}
+            xray = holdings_lib.parse_holdings(rows)
+            if not xray.get("available"):
+                return {"xray": xray, "error": "持仓无法解析，请检查 xray.errors"}
+            if ctx.plan is None:
+                return {"xray": xray,
+                        "note": "先生成配置方案 (build_investment_plan) 才能计算漂移"}
+            drift = holdings_lib.drift_analysis(xray, ctx.plan)
+            return {"xray": xray, "drift": drift}
+        except Exception as e:  # noqa: BLE001
+            return {"error": f"holdings analysis failed: {e}"}
+
     def get_kairos_context(args: Dict[str, Any]) -> Dict[str, Any]:
         """可选 Kairos 生态上下文: 兄弟仓库状态/真实ETF数据/研究结论/风险叠加。"""
         try:
@@ -673,6 +692,14 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
            "import": {"type": "boolean", "description": "是否写入因子库, 默认 true"},
            "overwrite": {"type": "boolean", "description": "同名因子是否覆盖"}},
           ["text"], factor_forge_from_text),
+        T("analyze_holdings",
+          "导入当前持仓并对照目标方案：计算组合 X-Ray（类别/集中度/币种）、"
+          "权重漂移、再平衡买卖清单、交易成本与适当性违规。"
+          "holdings 为行数组，每行 symbol + market_value（可选 currency/fx_to_cny/shares/cost/account）。"
+          "需先生成方案才能计算漂移。",
+          {"holdings": {"type": "array",
+                        "description": "持仓行数组，如 [{symbol:'510300', market_value:150000}]"}},
+          ["holdings"], analyze_holdings),
         T("screen_assets_by_custom_factors",
           "用 Factor Forge 写入的自定义因子做截面综合评分：对可通过 Atlas 面板验证的因子按方向/IC 加权，"
           "返回因子 IC 明细与资产评分排序。仅作研究证据。",
