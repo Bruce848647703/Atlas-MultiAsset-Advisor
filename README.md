@@ -59,7 +59,7 @@ optimizer level, double-checked at the report level.
 
 Key principle: **the quant core is fully deterministic** (plans work with no LLM —
 easy to unit-test and generate training data). **The LLM is the conversational
-interface**, driving the core through **22 tools**:
+interface**, driving the core through **23 tools**:
 
 | Tool | Purpose |
 |---|---|
@@ -84,6 +84,7 @@ interface**, driving the core through **22 tools**:
 | `get_kairos_context` | Optional Kairos ecosystem context: sibling package status, real ETF coverage, VaR/ES risk overlay, research findings |
 | `factor_forge_from_text` | Report brief → structured factor + executable code + sample validation; optionally write into the Atlas factor store |
 | `screen_assets_by_custom_factors` | Cross-sectional composite score from forged close-based factors (IC/direction weighted) |
+| `analyze_holdings` | Holdings X-Ray + target drift + rebalance trades + suitability checks |
 | `explain_product` | Product risk education (risk first, return second) |
 
 ### Kairos Ecosystem Integration ★ (`integrations/kairos.py`)
@@ -363,6 +364,28 @@ valuation, fundamentals, behavioral finance, HF money-flow, etc.):
   `examples/factor_library_sample`, so the knowledge base works out of the box;
   set `ATLAS_FACTOR_DIR` for the full 1000+ library).
 
+### Holdings X-Ray & Drift ★ (`portfolio/holdings.py`)
+
+Import a broker/Excel CSV (local only) to compare **actual** holdings with the
+recommended plan:
+
+```csv
+symbol,market_value,currency,fx_to_cny,shares,cost,account
+510300,150000,CNY,1,30000,4.8,brokerA
+CASH,50000,CNY,1,,,brokerA
+```
+
+- Resolves Atlas asset ids, 6-digit ETF codes, names, and `CASH`; aggregates
+  duplicate accounts; supports non-CNY rows with an explicit `fx_to_cny`.
+- X-Ray: total value, asset/class/currency weights, top-1/top-3, HHI/effective N,
+  optional P&L when cost+price are present.
+- Drift: current vs target by asset and class, turnover, estimated trading cost,
+  buy/sell/hold rebalance sheet, drift thresholds and **suitability violations**.
+- Available in the dashboard **Holdings X-Ray & Drift** panel, the
+  `analyze_holdings` LLM tool (23rd tool), and both Chinese/English reports.
+- Invalid rows (unknown ticker, missing value, non-CNY without FX, non-positive
+  market value) are reported with row numbers; nothing is silently guessed.
+
 ### Strategy Layer (amplify strengths, don't pile assets) ★
 
 Rather than cramming 26 assets into one portfolio, six philosophy-driven strategies, each with:
@@ -397,7 +420,7 @@ pip install -r requirements.txt          # numpy/pandas/scipy/matplotlib/openai/
 
 make demo        # offline demo: mass / affluent / HNW → examples/demo_outputs/
 make lint        # ruff static checks (pip install -r requirements-dev.txt)
-make test        # unit + integration tests (201)
+make test        # unit + integration tests (222)
 make eval        # compliance gate (weight legality / caps / disclaimer / segment access)
 make sft         # generate 400 SFT conversations → training/sft_data/train.jsonl
 
@@ -494,7 +517,7 @@ invest_agent/
                   #   backtest(walk-forward) / tactical(momentum+trend gate) /
                   #   rebalance(target-vs-current drift monitor)
   data/           # base / synthetic / akshare / kairos / universe (26 assets)
-  tools/          # 22 tools exposed to the LLM
+  tools/          # 23 tools exposed to the LLM
   charts.py, report.py, cli.py
 config/           # assets.yaml, risk_profiles.yaml, agent.yaml
 integrations/kairos_strategies.py  # ★ 106-strategy lab / cached leaderboard
@@ -506,7 +529,7 @@ docs/               # architecture, portfolio math, factors, operations and test
 training/         # README / generate_sft_data.py / build_real_dataset.py /
                   # eval/(compliance + requirement benchmark) / finetune/
 examples/factor_library_sample/  # factor-library sample (full lib: ATLAS_FACTOR_DIR)
-tests/            # 215 tests (offline, synthetic provider)
+tests/            # 222 tests (offline, synthetic provider)
 .streamlit/config.toml + dashboard/style.py  # Jane Street-style light theme
 dashboard/i18n.py  # zh-Hans / en / zh-Hant UI catalog + entity labels
 .github/workflows/ci.yml  # GitHub Actions: lint + tests (3.10/3.12/3.13) + gates
