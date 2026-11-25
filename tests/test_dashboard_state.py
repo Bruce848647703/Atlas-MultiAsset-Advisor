@@ -5,7 +5,9 @@ import re
 import pandas as pd
 import pytest
 
-from streamlit.testing.v1 import AppTest
+pytest.importorskip("streamlit")
+
+from streamlit.testing.v1 import AppTest  # noqa: E402
 
 
 MACRO = {
