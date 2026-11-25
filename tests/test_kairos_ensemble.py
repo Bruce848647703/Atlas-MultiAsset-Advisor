@@ -27,10 +27,15 @@ def test_build_ensemble_contract():
 @pytest.mark.skipif(not kairos_strategies.available()
                     or not kairos_strategies.load_cached(),
                     reason="sibling strategy lab cache not available")
-def test_ensemble_route_for_satellite():
+def test_ensemble_route_for_satellite_uses_cached_config():
+    pack = kairos_ensemble.build_ensemble(n=3, corr_max=0.9,
+                                          method="inverse_vol", force=True)
+    assert pack["available"] is True
     info = kairos_strategies.latest_weights(kairos_ensemble.ENSEMBLE_NAME)
     assert info["name"] == kairos_ensemble.ENSEMBLE_NAME
     assert info["weights"]
+    # Satellite must use the built ensemble, not a fresh 5/0.7/default run.
+    assert set(info["weights"]) == set(pack["latest"]["weights"])
 
 
 @pytest.mark.skipif(not kairos_strategies.available()
