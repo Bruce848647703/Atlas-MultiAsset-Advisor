@@ -72,12 +72,20 @@ def _report_text(at):
     return next((m.value for m in at.markdown if "Multi-Asset Plan" in m.value), "")
 
 
-def _fresh_dashboard(lang, result):
+def _fresh_dashboard(lang, result=None, **state):
     at = AppTest.from_file("dashboard/app.py", default_timeout=300)
     at.session_state["atlas_lang"] = lang
-    at.session_state["atlas_result"] = result
+    if result is not None:
+        at.session_state["atlas_result"] = result
+    for key, value in state.items():
+        at.session_state[key] = value
     at.run()
     return at
+
+
+def _risk_metrics(at):
+    return {m.label: m.value for m in at.metric
+            if m.label in ("Questionnaire tier", "Final tier", "Text adjustment")}
 
 
 def test_report_follows_language_switch(dashboard):
@@ -104,3 +112,69 @@ def test_report_follows_language_switch(dashboard):
     simplified_text = _report_text(simplified)
     assert "多元资产配置方案" in simplified_text
     assert "多元資產配置方案" not in simplified_text
+
+
+def test_free_text_cannot_override_questionnaire_upward(dashboard):
+    at = _fresh_dashboard(
+        "en",
+        atlas_answers_persist={i: 0 for i in range(9)},
+        free_text_persist="追求高收益 all in 加杠杆",
+    )
+    assert not at.exception
+    metrics = _risk_metrics(at)
+    assert metrics["Questionnaire tier"].startswith("C1")
+    assert metrics["Final tier"].startswith("C1")
+    assert any("higher tier" in w.value for w in at.warning)
+    strategies = next(s for s in at.selectbox if s.key == "strategy_choice")
+    assert all("Steady Carry" in o or "Auto" in o for o in strategies.options)
+
+
+def test_free_text_downgrade_is_explained(dashboard):
+    at = _fresh_dashboard(
+        "en",
+        atlas_answers_persist={i: 2 for i in range(9)},
+        free_text_persist="我真的亏不起本金，不能亏",
+    )
+    assert not at.exception
+    metrics = _risk_metrics(at)
+    assert metrics["Questionnaire tier"].startswith("C4")
+    assert metrics["Final tier"].startswith("C3")
+    assert any("more conservative" in i.value for i in at.info)
+
+
+def test_basing_liquidity_follows_questionnaire_q8(dashboard):
+    high = _fresh_dashboard("en", atlas_answers_persist={i: 2 for i in range(9)},
+                            atlas_q8=0)
+    assert any("Liquidity need" in c.value and "High" in c.value
+               for c in high.caption)
+    low = _fresh_dashboard("en", atlas_answers_persist={i: 2 for i in range(9)},
+                           atlas_q8=3)
+    assert any("Liquidity need" in c.value and "Low" in c.value
+               for c in low.caption)
+
+
+def test_basing_rejects_total_assets_below_investable_capital(dashboard):
+    at = _fresh_dashboard("en")
+    next(n for n in at.number_input if n.key == "ap_capital").set_value(10_000).run()
+    _button(at, "Generate basing advice").click().run()
+    assert not at.exception
+    assert any("cannot be lower than investable capital" in e.value
+               for e in at.error)
+    assert "atlas_bases" not in at.session_state
+
+
+def test_stale_result_warning_names_both_tiers(dashboard):
+    at = dashboard
+    _button(at, "Generate plan").click().run()
+    assert not at.exception
+    old_tier = at.session_state["atlas_result"]["profile"].tier
+
+    next(t for t in at.text_input if t.key == "free_text").set_value(
+        "我真的亏不起本金，不能亏").run()
+    assert not at.exception
+    new_tier = _risk_metrics(at)["Final tier"].split(" · ")[0]
+    assert new_tier != old_tier
+    stale = [w.value for w in at.warning
+             if "generated for" in w.value and old_tier in w.value
+             and new_tier in w.value]
+    assert stale

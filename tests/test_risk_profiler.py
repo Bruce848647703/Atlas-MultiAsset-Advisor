@@ -40,6 +40,30 @@ def test_free_text_can_downgrade_tier():
                                     free_text="但是我真的亏不起本金，不能亏")
     assert p_scared.score < p_plain.score
     assert p_scared.tier <= p_plain.tier
+    assert p_scared.base_tier == p_plain.base_tier
+    assert p_scared.text_tier == p_scared.tier
+    assert not p_scared.tier_capped
+
+
+def test_free_text_cannot_upgrade_above_questionnaire():
+    answers = all_answers(0)          # C1 questionnaire
+    p = profile_from_answers(answers, capital=100000,
+                             free_text="追求高收益，加杠杆，all in，看好币圈")
+    assert p.base_tier == "C1"
+    assert p.text_tier in {"C2", "C3", "C4", "C5"}
+    assert p.tier == "C1"             # questionnaire is the hard ceiling
+    assert p.tier_capped is True
+    assert p.score <= 20              # C1 score band upper bound stays consistent
+
+
+def test_free_text_agreeing_with_questionnaire_is_not_a_conflict():
+    answers = all_answers(2)
+    p = profile_from_answers(answers, capital=100000,
+                             free_text="能接受短期波动，也愿意长期持有")
+    assert p.base_tier == p.tier
+    assert p.text_tier == p.tier
+    assert p.tier_capped is False
+    assert p.score >= p.base_score
 
 
 def test_horizon_inference():
