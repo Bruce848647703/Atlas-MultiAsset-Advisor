@@ -101,6 +101,14 @@ def test_fx_out_of_range_is_rejected():
     assert any("超出合理范围" in e for e in xray["errors"])
 
 
+def test_absurd_market_value_is_rejected():
+    xray = holdings.parse_holdings(
+        [{"symbol": "510300", "market_value": "1e308", "currency": "USD",
+          "fx_to_cny": "7.2"}])
+    assert xray["available"] is False
+    assert any("超出合理范围" in e for e in xray["errors"])
+
+
 def test_negative_quantity_is_rejected():
     xray = holdings.parse_holdings(
         [{"symbol": "510300", "shares": "-100", "price": "5"}])

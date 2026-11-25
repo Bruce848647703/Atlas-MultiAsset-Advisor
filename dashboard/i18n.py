@@ -82,11 +82,11 @@ S = {
     "base.capital_conflict": ("总资产规模不能小于可投资本金（当前可投资本金 ¥{capital:,.0f}）。",
                               "Total assets cannot be lower than investable capital "
                               "(currently ¥{capital:,.0f})."),
-    "base.stale": ("落位建议基于上一组输入（适当性 {tier} / 总资产 ¥{capital:,.0f}），"
-                   "请重新生成以匹配当前问卷与本金。",
-                   "Basing advice used older inputs (tier {tier} / total assets "
-                   "¥{capital:,.0f}); regenerate it to match the current questionnaire "
-                   "and capital."),
+    "base.stale": ("落位建议基于上一组资产画像/问卷输入（适当性 {tier} / 总资产 ¥{capital:,.0f}），"
+                   "请重新生成以匹配当前问卷、资产类型、境外占比与本金。",
+                   "Basing advice used older asset-profile/questionnaire inputs "
+                   "(tier {tier} / total assets ¥{capital:,.0f}); regenerate it to match "
+                   "the current questionnaire, asset types, overseas share and capital."),
     "base.generate": ("生成落位建议", "Generate basing advice"),
     "base.result_title": ("② 全球落位建议（适当性 {tier}）— 按「适配度 × (1 − 摩擦)」打分",
                           "② Global basing advice (suitability {tier}) — fit × (1 − friction)"),
@@ -204,6 +204,9 @@ S = {
                  "Fuses the quant allocation × class views × global regime × global bases into one "
                  "trend-aligned recommendation with a basing map and action list."),
     "fa.generate": ("生成最终建议", "Generate final advice"),
+    "fa.inputs_changed": ("问卷/方案/资产画像输入已修改，上一份最终建议/智囊团已清空；请重新生成。",
+                          "Questionnaire/plan/basing inputs changed; the previous final "
+                          "advice / analyst council was cleared. Generate it again."),
     "fa.spinner": ("融合中：大类观点 + 全球局势 + base 落位 ...", "Fusing class views, global regime and basing..."),
     "fa.thesis": ("**研判主线**：{thesis}", "**Thesis**: {thesis}"),
     "fa.overlays": ("全球局势：{regime}（风险偏好 {appetite:+.2f}）· 议题：{themes}",
@@ -543,6 +546,16 @@ S = {
     "common.none": ("无", "None"),
     "common.hours": ("{h:.1f} 小时", "{h:.1f} h"),
     "common.never": ("从未", "never"),
+    "common.stale_plan": ("问卷或输入已修改：请先重新生成方案，再生成最终建议/智囊团，"
+                          "避免旧方案与当前问卷冲突。",
+                          "Questionnaire/inputs changed: regenerate the plan before "
+                          "generating final advice or the analyst council, so they cannot "
+                          "contradict the current questionnaire."),
+    "common.provider_stale": ("该结果基于 {old} 数据源；当前左侧选择 {new}，"
+                              "请重新运行以保持一致。",
+                              "This result was computed with the {old} provider; the "
+                              "current sidebar selection is {new}. Re-run it to stay "
+                              "consistent."),
     # Kairos ecosystem
     "kairos.title": ("Kairos 生态联动", "Kairos Ecosystem"),
     "kairos.intro": ("Atlas 与同目录的 Kairos 量化套件联动：复用 kairos-data 的真实 ETF 行情、"

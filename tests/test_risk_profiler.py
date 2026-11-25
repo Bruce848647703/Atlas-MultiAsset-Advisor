@@ -66,6 +66,39 @@ def test_free_text_agreeing_with_questionnaire_is_not_a_conflict():
     assert p.score >= p.base_score
 
 
+def test_free_text_only_still_profiles():
+    p = profile_from_answers({}, capital=100_000,
+                             free_text="追求高收益 all in 加杠杆")
+    assert p.base_tier == "C1"
+    assert p.text_tier == "C2"
+    assert p.tier == "C2"          # no questionnaire -> no artificial ceiling
+    assert p.tier_capped is False
+    assert any("not capped" in n for n in p.notes)
+
+
+def test_partial_questionnaire_does_not_cap_text():
+    p = profile_from_answers({0: 0}, capital=100_000,
+                             free_text="追求高收益 all in 加杠杆")
+    assert p.tier == "C2"
+    assert p.tier_capped is False
+
+
+def test_tool_summary_exposes_tier_consistency():
+    from invest_agent.tools import AdvisorContext, build_tools
+
+    tools = {t.name: t for t in build_tools(AdvisorContext(provider_name="synthetic"))}
+    out = tools["assess_risk_profile"].handler({
+        "answers": {str(i): 0 for i in range(len(QUESTIONS))},
+        "capital": 100_000,
+        "free_text": "追求高收益 all in 加杠杆",
+    })
+    assert out["tier"] == "C1"
+    assert out["base_tier"] == "C1"
+    assert out["text_tier"] in {"C2", "C3", "C4", "C5"}
+    assert out["tier_capped"] is True
+    assert out["score"] <= 20
+
+
 def test_horizon_inference():
     p = profile_from_answers(all_answers(2), capital=100000)
     assert p.horizon_years in (1, 2, 4, 7)
