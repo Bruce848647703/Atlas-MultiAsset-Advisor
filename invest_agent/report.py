@@ -248,6 +248,59 @@ def _render_monte_carlo_en(mc: Dict) -> str:
     return "\n".join(L)
 
 
+def _render_attribution_zh(att: Dict) -> str:
+    if not att.get("available"):
+        return ""
+    fac, risk, ret = att.get("factor") or {}, att.get("risk") or {}, att.get("return") or {}
+    L = ["## 风险 / 因子归因 Risk & Factor Attribution\n",
+         "| 指标 | 数值 |\n|---|---|",
+         f"| 年化 alpha | {fac.get('alpha_annual', 0):+.2%} |" if fac.get("available") else
+         "| 年化 alpha | — |",
+         f"| 市场 beta / R² | {(fac.get('betas') or {}).get('market', 0):.2f} / "
+         f"{fac.get('r2', 0):.1%} |" if fac.get("available") else
+         "| 市场 beta / R² | — |",
+         f"| 年化波动 / 风险有效 N | {risk.get('vol_annual', 0):.1%} / "
+         f"{risk.get('effective_n', 0):.2f} |"]
+    if fac.get("available") and fac.get("betas"):
+        L.append("\n**因子暴露**: " + "、".join(
+            f"{k} {v:+.2f}" for k, v in fac["betas"].items()))
+    if ret.get("by_class"):
+        L.append("\n**收益贡献（当前权重）**: " + "、".join(
+            f"{k} {v:+.1%}" for k, v in ret["by_class"].items()))
+    if risk.get("by_class"):
+        L.append("**风险贡献（Euler）**: " + "、".join(
+            f"{k} {v:.1%}" for k, v in risk["by_class"].items()))
+    L.append("\n_静态权重近似归因，仅供研究解释，不构成投资建议。_\n")
+    return "\n".join(L)
+
+
+def _render_attribution_en(att: Dict) -> str:
+    if not att.get("available"):
+        return ""
+    fac, risk, ret = att.get("factor") or {}, att.get("risk") or {}, att.get("return") or {}
+    L = ["## Risk & Factor Attribution\n",
+         "| Metric | Value |\n|---|---|",
+         f"| Annual alpha | {fac.get('alpha_annual', 0):+.2%} |" if fac.get("available")
+         else "| Annual alpha | — |",
+         f"| Market beta / R² | {(fac.get('betas') or {}).get('market', 0):.2f} / "
+         f"{fac.get('r2', 0):.1%} |" if fac.get("available")
+         else "| Market beta / R² | — |",
+         f"| Annual vol / effective N | {risk.get('vol_annual', 0):.1%} / "
+         f"{risk.get('effective_n', 0):.2f} |"]
+    if fac.get("available") and fac.get("betas"):
+        L.append("\n**Factor exposures**: " + ", ".join(
+            f"{k} {v:+.2f}" for k, v in fac["betas"].items()))
+    if ret.get("by_class"):
+        L.append("\n**Return contribution (current weights)**: " + ", ".join(
+            f"{_EN_CLASS.get(k, k)} {v:+.1%}" for k, v in ret["by_class"].items()))
+    if risk.get("by_class"):
+        L.append("**Risk contribution (Euler)**: " + ", ".join(
+            f"{_EN_CLASS.get(k, k)} {v:.1%}" for k, v in risk["by_class"].items()))
+    L.append("\n_Static-weight approximate attribution, research explanation only, "
+             "not investment advice._\n")
+    return "\n".join(L)
+
+
 def _metrics_table_en(plan: Plan) -> str:
     m, b = plan.backtest, {} if not plan.bench_backtest else plan.bench_backtest
     rows = [
@@ -275,7 +328,8 @@ def _build_report_en(plan: Plan, chart_paths: Optional[Dict[str, str]],
                      final_advice: Optional[Dict],
                      analyst_council: Optional[Dict],
                      holdings: Optional[Dict] = None,
-                     monte_carlo: Optional[Dict] = None) -> str:
+                     monte_carlo: Optional[Dict] = None,
+                     attribution: Optional[Dict] = None) -> str:
     """English report from the same deterministic plan data (no Chinese prose)."""
     from .data.universe import build_universe as _bu
     from .global_base import GLOBAL_BASES
@@ -421,6 +475,8 @@ def _build_report_en(plan: Plan, chart_paths: Optional[Dict[str, str]],
 
     if monte_carlo:
         L.append(_render_monte_carlo_en(monte_carlo))
+    if attribution:
+        L.append(_render_attribution_en(attribution))
 
     L.append("## 3. Goal Projection\n")
     last = plan.projection[-1] if plan.projection else None
@@ -452,10 +508,12 @@ def build_report(plan: Plan, chart_paths: Optional[Dict[str, str]] = None,
                  lang: str = "zh", final_advice: Optional[Dict] = None,
                  analyst_council: Optional[Dict] = None,
                  holdings: Optional[Dict] = None,
-                 monte_carlo: Optional[Dict] = None) -> str:
+                 monte_carlo: Optional[Dict] = None,
+                 attribution: Optional[Dict] = None) -> str:
     if lang == "en":
         return _build_report_en(plan, chart_paths, final_advice, analyst_council,
-                                holdings=holdings, monte_carlo=monte_carlo)
+                                holdings=holdings, monte_carlo=monte_carlo,
+                                attribution=attribution)
     cfg = get_config()
     disclaimer = cfg["agent"]["disclaimer"].strip()
     name_of = {a.id: a.name_en for a in plan.assets}
@@ -548,6 +606,8 @@ def build_report(plan: Plan, chart_paths: Optional[Dict[str, str]] = None,
 
     if monte_carlo:
         L.append(_render_monte_carlo_zh(monte_carlo))
+    if attribution:
+        L.append(_render_attribution_zh(attribution))
 
     L.append("## 3. 目标投射 Goal Projection\n")
     last = plan.projection[-1] if plan.projection else None

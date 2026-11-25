@@ -547,6 +547,21 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
         except Exception as e:  # noqa: BLE001
             return {"error": f"custom factor scores unavailable: {e}"}
 
+    def get_risk_attribution(args: Dict[str, Any]) -> Dict[str, Any]:
+        """收益、风险与因子归因。"""
+        if ctx.plan is None:
+            return {"error": "请先生成配置方案 (build_investment_plan)。"}
+        try:
+            from ..portfolio import attribution
+            n_months = args.get("n_months")
+            n_months = integer(n_months, "回看月数 n_months", minimum=24,
+                               maximum=600) if n_months is not None else None
+            return attribution.analyze(ctx.plan, n_months=n_months)
+        except (ValueError, InputValidationError) as e:
+            return {"error": str(e)}
+        except Exception as e:  # noqa: BLE001
+            return {"error": f"attribution failed: {e}"}
+
     def run_monte_carlo(args: Dict[str, Any]) -> Dict[str, Any]:
         """模拟当前方案的财富路径，并返回情景压力测试。"""
         if ctx.plan is None:
@@ -716,6 +731,11 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
            "import": {"type": "boolean", "description": "是否写入因子库, 默认 true"},
            "overwrite": {"type": "boolean", "description": "同名因子是否覆盖"}},
           ["text"], factor_forge_from_text),
+        T("get_risk_attribution",
+          "解释当前方案的收益/风险/因子来源：类别收益贡献、Euler 风险贡献、市场 beta、"
+          "价值/动量/低波/规模/利率/商品/加密因子暴露、R²、alpha 与残余风险。",
+          {"n_months": {"type": "integer", "minimum": 24, "maximum": 600}},
+          [], get_risk_attribution),
         T("run_monte_carlo",
           "对当前方案做 Monte Carlo 财富路径模拟（bootstrap / parametric t）并返回情景压力测试："
           "终值分位、目标达成概率、亏损概率、最大回撤分布、VaR/ES，以及股票/利率/加密/汇率冲击。",
