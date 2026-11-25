@@ -170,7 +170,12 @@ def analyze(plan, n_months: Optional[int] = None) -> Dict[str, Any]:
         port = returns.mul(w, axis=1).sum(axis=1)
     else:
         port = eq.pct_change().dropna()
-        port = port.reindex(returns.index).dropna()
+        if not port.index.equals(returns.index):
+            # Some programmatic Plan objects carry a RangeIndex; align by
+            # position so factor attribution still works instead of silently
+            # reporting "not enough observations".
+            tail = port.iloc[-len(returns):]
+            port = pd.Series(tail.to_numpy(), index=returns.index[-len(tail):])
     factors = _factor_frame(returns, plan)
     factor = _factor_regression(port, factors) if not factors.empty else {
         "available": False, "reason": "no factor proxies"}

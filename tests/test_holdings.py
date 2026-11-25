@@ -1,5 +1,7 @@
 from types import SimpleNamespace
 
+import pytest
+
 from invest_agent.data.universe import build_universe
 from invest_agent.portfolio import holdings
 
@@ -64,6 +66,56 @@ def test_non_cny_requires_fx():
           "fx_to_cny": "7.2"}])
     assert good["available"] is True
     assert good["total_value"] == 7200
+
+
+def test_csv_rejects_oversized_upload():
+    with pytest.raises(ValueError, match="过大"):
+        holdings.parse_csv(b"x" * (holdings.MAX_CSV_BYTES + 1))
+
+
+def test_csv_rejects_too_many_rows():
+    body = "symbol,market_value\n" + "510300,1000\n" * (holdings.MAX_CSV_ROWS + 1)
+    with pytest.raises(ValueError, match="行数过多"):
+        holdings.parse_csv(body)
+
+
+def test_csv_accepts_gb18030_export():
+    rows = holdings.parse_csv(
+        "代码,市值,币种\n510300,100000,人民币\n".encode("gb18030"))
+    assert rows[0]["代码"] == "510300"
+
+
+def test_parse_holdings_rejects_too_many_rows():
+    rows = [{"symbol": "510300", "market_value": "100"}
+            for _ in range(holdings.MAX_CSV_ROWS + 1)]
+    xray = holdings.parse_holdings(rows)
+    assert xray["available"] is False
+    assert any("行数过多" in e for e in xray["errors"])
+
+
+def test_fx_out_of_range_is_rejected():
+    xray = holdings.parse_holdings(
+        [{"symbol": "510300", "market_value": "1000", "currency": "USD",
+          "fx_to_cny": "72"}])
+    assert xray["available"] is False
+    assert any("超出合理范围" in e for e in xray["errors"])
+
+
+def test_negative_quantity_is_rejected():
+    xray = holdings.parse_holdings(
+        [{"symbol": "510300", "shares": "-100", "price": "5"}])
+    assert xray["available"] is False
+    assert any("不能为负数" in e for e in xray["errors"])
+
+
+def test_symbol_map_handles_missing_symbol_ak():
+    asset = SimpleNamespace(id="csi300_etf", name_zh="沪深300ETF",
+                            name_en="CSI300 ETF", asset_class="equity_cn",
+                            meta={"symbol_ak": None})
+    xray = holdings.parse_holdings(
+        [{"symbol": "csi300_etf", "market_value": "1000"}], universe=[asset])
+    assert xray["available"] is True
+    assert xray["holdings"][0]["asset_id"] == "csi300_etf"
 
 
 def test_drift_and_trade_list():
