@@ -564,6 +564,7 @@ if run:
         st.session_state["atlas_result"] = res
         # simulation belongs to the previous plan
         st.session_state.pop("atlas_mc", None)
+        st.session_state.pop("atlas_attribution", None)
     except InputValidationError as e:
         st.error(str(e))
     except Exception as e:  # noqa: BLE001 - friendly error instead of traceback
@@ -1036,6 +1037,63 @@ with st.expander(t("mc.title", lang), expanded=False):
             t("mc.loss", lang): f"¥{r['loss']:,.0f}",
         } for r in _stress["rows"]], hide_index=True, use_container_width=True)
         st.caption(t("mc.note", lang))
+
+with st.expander(t("attr.title", lang), expanded=False):
+    from invest_agent.portfolio import attribution as attr_lib  # noqa: E402
+    st.caption(t("attr.intro", lang))
+    if st.button(t("attr.run", lang), key="attr_run_btn"):
+        with st.spinner(t("attr.spinner", lang)):
+            try:
+                st.session_state["atlas_attribution"] = attr_lib.analyze(plan)
+            except Exception as _ate:  # noqa: BLE001
+                st.session_state["atlas_attribution"] = {
+                    "available": False, "reason": str(_ate)}
+    _att = st.session_state.get("atlas_attribution")
+    if _att and not _att.get("available"):
+        st.warning(t("attr.error", lang, err=_att.get("reason", "—")))
+    elif _att and _att.get("available"):
+        _fac = _att.get("factor") or {}
+        _risk = _att.get("risk") or {}
+        _ret = _att.get("return") or {}
+        _a1, _a2, _a3, _a4, _a5, _a6 = st.columns(6)
+        _a1.metric(t("attr.alpha", lang),
+                   f"{_fac.get('alpha_annual', 0):+.2%}" if _fac.get("available") else "—")
+        _a2.metric(t("attr.beta", lang),
+                   f"{(_fac.get('betas') or {}).get('market', 0):.2f}"
+                   if _fac.get("available") else "—")
+        _a3.metric(t("attr.r2", lang),
+                   f"{_fac.get('r2', 0):.1%}" if _fac.get("available") else "—")
+        _a4.metric(t("attr.factor_share", lang),
+                   f"{_fac.get('factor_risk_share', 0):.1%}"
+                   if _fac.get("available") else "—")
+        _a5.metric(t("attr.vol", lang), f"{_risk.get('vol_annual', 0):.1%}")
+        _a6.metric(t("attr.effn", lang), f"{_risk.get('effective_n', 0):.2f}")
+        _factor_zh = {"market": "市场", "size": "规模", "value": "价值",
+                      "rates": "利率", "commodity": "商品", "crypto": "加密",
+                      "momentum": "动量", "low_vol": "低波"}
+        if _fac.get("available") and _fac.get("betas"):
+            st.markdown(f"**{t('attr.factors', lang)}**")
+            st.dataframe([{
+                t("attr.factor", lang): (_factor_zh.get(k, k) if lang != "en" else k),
+                t("attr.beta_value", lang): f"{v:+.2f}",
+            } for k, v in _fac["betas"].items()],
+                hide_index=True, use_container_width=True)
+        _c1, _c2 = st.columns(2)
+        with _c1:
+            st.markdown(f"**{t('attr.return', lang)}**")
+            st.dataframe([{
+                t("attr.class", lang): class_label(k, lang),
+                t("attr.contribution", lang): f"{v:+.2%}",
+            } for k, v in (_ret.get("by_class") or {}).items()],
+                hide_index=True, use_container_width=True)
+        with _c2:
+            st.markdown(f"**{t('attr.risk', lang)}**")
+            st.dataframe([{
+                t("attr.class", lang): class_label(k, lang),
+                t("attr.contribution", lang): f"{v:.1%}",
+            } for k, v in (_risk.get("by_class") or {}).items()],
+                hide_index=True, use_container_width=True)
+        st.caption(t("attr.note", lang))
 
 st.subheader(t("universe.title", lang))
 st.caption(t("universe.intro", lang))
@@ -1530,14 +1588,16 @@ with st.expander(t("report.title", lang)):
     _cc_rep = _cc_rep if (_cc_rep and not _cc_rep.get("error")) else None
     if ((_fa_rep and not _fa_rep.get("error")) or _cc_rep
             or lang == "en" or st.session_state.get("atlas_holdings")
-            or st.session_state.get("atlas_mc")):
+            or st.session_state.get("atlas_mc")
+            or st.session_state.get("atlas_attribution")):
         from invest_agent.report import build_report as _br  # noqa: E402
         _rep_src = _br(plan, res["charts"],
                        lang="en" if lang == "en" else "zh",
                        final_advice=(_fa_rep if _fa_rep and not _fa_rep.get("error") else None),
                        analyst_council=_cc_rep,
                        holdings=st.session_state.get("atlas_holdings"),
-                       monte_carlo=st.session_state.get("atlas_mc"))
+                       monte_carlo=st.session_state.get("atlas_mc"),
+                       attribution=st.session_state.get("atlas_attribution"))
     else:
         _rep_src = res["report"]
     _report_text = _re.sub(r"!\[([^\]]*)\]\(([^)]+)\)", _embed, _rep_src)

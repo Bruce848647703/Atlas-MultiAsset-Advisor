@@ -59,7 +59,7 @@ optimizer level, double-checked at the report level.
 
 Key principle: **the quant core is fully deterministic** (plans work with no LLM —
 easy to unit-test and generate training data). **The LLM is the conversational
-interface**, driving the core through **24 tools**:
+interface**, driving the core through **25 tools**:
 
 | Tool | Purpose |
 |---|---|
@@ -86,6 +86,7 @@ interface**, driving the core through **24 tools**:
 | `screen_assets_by_custom_factors` | Cross-sectional composite score from forged close-based factors (IC/direction weighted) |
 | `analyze_holdings` | Holdings X-Ray + target drift + rebalance trades + suitability checks |
 | `run_monte_carlo` | Wealth-path simulation + goal probability + drawdown/VaR + scenario stress |
+| `get_risk_attribution` | Return/risk/factor attribution, beta, R², alpha and residual risk |
 | `explain_product` | Product risk education (risk first, return second) |
 
 ### Kairos Ecosystem Integration ★ (`integrations/kairos.py`)
@@ -404,6 +405,22 @@ simulation:
   `run_monte_carlo` LLM tool (24th tool). Invalid path counts, horizons,
   methods and targets return readable errors.
 
+### Risk & Factor Attribution ★ (`portfolio/attribution.py`)
+
+Explains the plan instead of only showing it:
+
+- **Return contribution**: current-weight asset/class contribution over the
+  monthly history.
+- **Risk contribution**: Euler component risk by asset/class, annualized
+  volatility and risk effective-N.
+- **Factor attribution**: market / value / momentum / low-vol / size / rates /
+  commodity / crypto proxies built from the Atlas universe; reports betas,
+  annual alpha, R² (factor risk share) and residual vol.
+- Available via the dashboard **Risk & Factor Attribution** panel, Chinese /
+  English report sections, and the `get_risk_attribution` LLM tool (25th tool).
+- Attribution uses current weights as a transparent static-weight approximation;
+  it is explanation, not a performance guarantee.
+
 ### Strategy Layer (amplify strengths, don't pile assets) ★
 
 Rather than cramming 26 assets into one portfolio, six philosophy-driven strategies, each with:
@@ -438,7 +455,7 @@ pip install -r requirements.txt          # numpy/pandas/scipy/matplotlib/openai/
 
 make demo        # offline demo: mass / affluent / HNW → examples/demo_outputs/
 make lint        # ruff static checks (pip install -r requirements-dev.txt)
-make test        # unit + integration tests (228)
+make test        # unit + integration tests (231)
 make eval        # compliance gate (weight legality / caps / disclaimer / segment access)
 make sft         # generate 400 SFT conversations → training/sft_data/train.jsonl
 
@@ -535,7 +552,7 @@ invest_agent/
                   #   backtest(walk-forward) / tactical(momentum+trend gate) /
                   #   rebalance(target-vs-current drift monitor)
   data/           # base / synthetic / akshare / kairos / universe (26 assets)
-  tools/          # 24 tools exposed to the LLM
+  tools/          # 25 tools exposed to the LLM
   charts.py, report.py, cli.py
 config/           # assets.yaml, risk_profiles.yaml, agent.yaml
 integrations/kairos_strategies.py  # ★ 106-strategy lab / cached leaderboard
@@ -547,7 +564,7 @@ docs/               # architecture, portfolio math, factors, operations and test
 training/         # README / generate_sft_data.py / build_real_dataset.py /
                   # eval/(compliance + requirement benchmark) / finetune/
 examples/factor_library_sample/  # factor-library sample (full lib: ATLAS_FACTOR_DIR)
-tests/            # 228 tests (offline, synthetic provider)
+tests/            # 231 tests (offline, synthetic provider)
 .streamlit/config.toml + dashboard/style.py  # Jane Street-style light theme
 dashboard/i18n.py  # zh-Hans / en / zh-Hant UI catalog + entity labels
 .github/workflows/ci.yml  # GitHub Actions: lint + tests (3.10/3.12/3.13) + gates
