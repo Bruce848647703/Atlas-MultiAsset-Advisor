@@ -36,6 +36,7 @@ from invest_agent.agent import InvestAgent  # noqa: E402
 from invest_agent.factors import custom as custom_factors  # noqa: E402
 from invest_agent.integrations import factor_forge as forge_bridge  # noqa: E402
 from invest_agent.integrations import kairos as kairos_bridge  # noqa: E402
+from invest_agent.integrations import kairos_ensemble as kairos_ens  # noqa: E402
 from invest_agent.integrations import kairos_strategies as kairos_lab  # noqa: E402
 from invest_agent.risk_profiler import QUESTIONS, profile_from_answers  # noqa: E402
 from invest_agent.strategy import STRATEGY_MENU, menu_for_tier  # noqa: E402
@@ -423,6 +424,8 @@ with st.sidebar:
                           f"{tier_label(_preview_profile.tier_info, lang)}"))
     _lab_cache = kairos_lab.load_cached()
     _lab_names = [r["name"] for r in (_lab_cache or {}).get("strategies", [])[:20]]
+    if kairos_ens.load_cached():
+        _lab_names = _lab_names + [kairos_ens.ENSEMBLE_NAME]
     satellite_choice = "none"
     satellite_budget = 0.0
     if _lab_names:
@@ -435,7 +438,9 @@ with st.sidebar:
             satellite_choice = st.selectbox(
                 t("sat.title", lang), _sat_options,
                 index=_sat_options.index(_saved_sat),
-                format_func=lambda x: t("sat.none", lang) if x == "none" else x,
+                format_func=lambda x: (t("sat.none", lang) if x == "none"
+                                       else (t("sat.ensemble", lang)
+                                             if x == kairos_ens.ENSEMBLE_NAME else x)),
                 key="satellite_choice",
             )
             st.session_state["satellite_persist"] = satellite_choice
@@ -1565,6 +1570,87 @@ with st.expander(t("lab.title", lang)):
                         st.line_chart(_eqdf, height=260)
         elif _lab is None:
             st.caption(t("lab.no_cache", lang))
+
+with st.expander(t("ens.title", lang)):
+    st.caption(t("ens.intro", lang))
+    if not kairos_lab.load_cached():
+        st.info(t("ens.no_lab", lang))
+    else:
+        _e1, _e2, _e3, _e4 = st.columns(4)
+        with _e1:
+            _ens_n = st.selectbox(t("ens.n", lang), [3, 5, 8],
+                                  index=[3, 5, 8].index(
+                                      int(st.session_state.get("ens_n_persist", 5))),
+                                  key="ens_n")
+            st.session_state["ens_n_persist"] = _ens_n
+        with _e2:
+            _ens_corr = st.selectbox(
+                t("ens.corr", lang), [0.5, 0.7, 0.9],
+                index=[0.5, 0.7, 0.9].index(
+                    float(st.session_state.get("ens_corr_persist", 0.7))),
+                format_func=lambda x: f"{x:.0%}", key="ens_corr")
+            st.session_state["ens_corr_persist"] = _ens_corr
+        with _e3:
+            _ens_method = st.selectbox(
+                t("ens.method", lang), ["inverse_vol", "risk_parity", "equal"],
+                index=["inverse_vol", "risk_parity", "equal"].index(
+                    st.session_state.get("ens_method_persist", "inverse_vol")),
+                format_func=lambda x: {"equal": t("ens.equal", lang),
+                                       "inverse_vol": t("ens.invvol", lang),
+                                       "risk_parity": t("ens.riskparity", lang)}[x],
+                key="ens_method")
+            st.session_state["ens_method_persist"] = _ens_method
+        with _e4:
+            if st.button(t("ens.run", lang), key="ens_run"):
+                with st.spinner(t("ens.spinner", lang)):
+                    try:
+                        _pack = kairos_ens.build_ensemble(
+                            n=int(_ens_n), corr_max=float(_ens_corr),
+                            method=_ens_method, force=True)
+                        st.session_state["atlas_ensemble"] = _pack
+                        if _pack.get("available"):
+                            st.rerun()
+                    except Exception as _ee:  # noqa: BLE001
+                        st.warning(t("ens.error", lang, err=_ee))
+        _ens = st.session_state.get("atlas_ensemble") or kairos_ens.load_cached()
+        if _ens and not _ens.get("available"):
+            st.warning(t("ens.error", lang, err=_ens.get("reason", "—")))
+        elif _ens and _ens.get("available"):
+            st.markdown(f"**{t('ens.selected', lang)}**")
+            st.dataframe([{
+                t("kairos.col_strategy", lang): r["name"],
+                t("ens.weight", lang): f"{r['weight']:.1%}",
+                t("ens.sharpe", lang): f"{r['sharpe']:.2f}" if r.get("sharpe") is not None else "—",
+            } for r in _ens["selected"]], hide_index=True, use_container_width=True)
+            _em, _bm, _qm = _ens["metrics"], _ens["best_single"]["metrics"], _ens["equal_weight"]
+            st.markdown(f"**{t('ens.results', lang)}**")
+            st.dataframe([{
+                "": t("ens.ensemble", lang),
+                "CAGR": f"{_em['cagr']:.1%}", "Vol": f"{_em['volatility']:.1%}",
+                "Sharpe": f"{_em['sharpe']:.2f}", "Max DD": f"{_em['max_drawdown']:.1%}",
+            }, {
+                "": t("ens.best", lang),
+                "CAGR": f"{_bm['cagr']:.1%}", "Vol": f"{_bm['volatility']:.1%}",
+                "Sharpe": f"{_bm['sharpe']:.2f}", "Max DD": f"{_bm['max_drawdown']:.1%}",
+            }, {
+                "": t("ens.equal_perf", lang),
+                "CAGR": f"{_qm['cagr']:.1%}", "Vol": f"{_qm['volatility']:.1%}",
+                "Sharpe": f"{_qm['sharpe']:.2f}", "Max DD": f"{_qm['max_drawdown']:.1%}",
+            }], hide_index=True, use_container_width=True)
+            _latest = _ens.get("latest") or {}
+            if _latest.get("weights"):
+                from invest_agent.data.universe import build_universe as _ebu  # noqa: E402
+                _enames = {a.id: asset_name(a, lang) for a in _ebu()}
+                st.markdown(f"**{t('ens.latest', lang)}**")
+                st.dataframe([{
+                    t("holdings.asset", lang): _enames.get(k, k),
+                    t("alloc.weight", lang): f"{v:.1%}",
+                } for k, v in _latest["weights"].items()],
+                    hide_index=True, use_container_width=True)
+            if st.button(t("ens.use_sat", lang), key="ens_use_sat"):
+                st.session_state["satellite_persist"] = kairos_ens.ENSEMBLE_NAME
+                st.session_state["satellite_budget_persist"] = 10
+                st.rerun()
 
 with st.expander(t("report.title", lang)):
     import base64 as _b64

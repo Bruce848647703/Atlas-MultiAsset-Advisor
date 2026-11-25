@@ -590,6 +590,32 @@ S = {
     "sat.coverage_low": ("该策略只有 {coverage:.0%} 的权重能映射到 Atlas 资产池，叠加效果有限。",
                          "Only {coverage:.0%} of this strategy maps onto the Atlas universe; "
                          "the overlay has limited effect."),
+    "sat.ensemble": ("Kairos 策略组合 / Ensemble", "Kairos strategy ensemble"),
+    # Strategy ensemble
+    "ens.title": ("Kairos 策略集成 / 元配置", "Kairos Strategy Ensemble"),
+    "ens.intro": ("从策略实验室做相关性剪枝，再用等权/逆波动/风险平价组合，"
+                  "降低单策略过拟合；可把组合作为受上限约束的卫星层。",
+                  "Correlation-prunes the Strategy Lab, then blends survivors with equal / "
+                  "inverse-vol / risk-parity weights; usable as a bounded satellite sleeve."),
+    "ens.n": ("保留策略数", "Strategies"),
+    "ens.corr": ("最大相关性", "Max correlation"),
+    "ens.method": ("组合方法", "Method"),
+    "ens.equal": ("等权", "Equal weight"),
+    "ens.invvol": ("逆波动", "Inverse volatility"),
+    "ens.riskparity": ("风险平价", "Risk parity"),
+    "ens.run": ("构建策略组合", "Build ensemble"),
+    "ens.spinner": ("相关性剪枝并组合策略...", "Pruning and blending strategies..."),
+    "ens.results": ("策略组合结果", "Ensemble result"),
+    "ens.selected": ("入选策略", "Selected strategies"),
+    "ens.weight": ("组合权重", "Sleeve weight"),
+    "ens.sharpe": ("夏普", "Sharpe"),
+    "ens.ensemble": ("策略组合", "Ensemble"),
+    "ens.best": ("最佳单策略", "Best single"),
+    "ens.equal_perf": ("等权基准", "Equal-weight"),
+    "ens.use_sat": ("作为卫星层使用", "Use as satellite"),
+    "ens.latest": ("最新 Atlas 映射权重", "Latest Atlas weights"),
+    "ens.error": ("策略组合构建失败：{err}", "Ensemble failed: {err}"),
+    "ens.no_lab": ("先运行 Kairos 策略实验室，再构建组合。", "Run the Kairos Strategy Lab first."),
 }
 
 

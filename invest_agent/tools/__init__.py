@@ -562,6 +562,23 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
         except Exception as e:  # noqa: BLE001
             return {"error": f"attribution failed: {e}"}
 
+    def get_kairos_ensemble(args: Dict[str, Any]) -> Dict[str, Any]:
+        """Kairos 策略集成：相关性剪枝 + 等权/逆波动/风险平价。"""
+        try:
+            from ..integrations import kairos_ensemble
+            n = integer(args.get("n", 5), "策略数量 n", minimum=2, maximum=12)
+            corr = finite_number(args.get("corr_max", 0.7), "最大相关性",
+                                 minimum=0.0, maximum=0.99)
+            method = text_value(args.get("method", "inverse_vol"),
+                                "组合方法", max_chars=30) or "inverse_vol"
+            return kairos_ensemble.build_ensemble(
+                n=n, corr_max=corr, method=method,
+                force=bool(args.get("force", False)))
+        except (ValueError, InputValidationError) as e:
+            return {"error": str(e)}
+        except Exception as e:  # noqa: BLE001
+            return {"error": f"ensemble failed: {e}"}
+
     def run_monte_carlo(args: Dict[str, Any]) -> Dict[str, Any]:
         """模拟当前方案的财富路径，并返回情景压力测试。"""
         if ctx.plan is None:
@@ -731,6 +748,15 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
            "import": {"type": "boolean", "description": "是否写入因子库, 默认 true"},
            "overwrite": {"type": "boolean", "description": "同名因子是否覆盖"}},
           ["text"], factor_forge_from_text),
+        T("get_kairos_ensemble",
+          "Kairos 策略集成/元配置：从策略实验室按相关性剪枝，再用等权/逆波动/风险平价组合，"
+          "返回入选策略、组合指标、最佳单策略对比与最新 Atlas 映射权重。",
+          {"n": {"type": "integer", "minimum": 2, "maximum": 12},
+           "corr_max": {"type": "number", "minimum": 0, "maximum": 0.99},
+           "method": {"type": "string",
+                      "enum": ["equal", "inverse_vol", "risk_parity"]},
+           "force": {"type": "boolean"}},
+          [], get_kairos_ensemble),
         T("get_risk_attribution",
           "解释当前方案的收益/风险/因子来源：类别收益贡献、Euler 风险贡献、市场 beta、"
           "价值/动量/低波/规模/利率/商品/加密因子暴露、R²、alpha 与残余风险。",
