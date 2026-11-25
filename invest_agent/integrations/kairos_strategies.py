@@ -196,6 +196,9 @@ def latest_weights(name: str) -> Dict[str, Any]:
     is actually in risky assets, and ``coverage`` is the share of the strategy
     that maps onto the Atlas universe.
     """
+    if name == "__kairos_ensemble__":
+        from . import kairos_ensemble
+        return kairos_ensemble.latest_weights()
     if not available():
         return {}
     ks = _pkg()

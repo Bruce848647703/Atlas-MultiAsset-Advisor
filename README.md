@@ -59,7 +59,7 @@ optimizer level, double-checked at the report level.
 
 Key principle: **the quant core is fully deterministic** (plans work with no LLM —
 easy to unit-test and generate training data). **The LLM is the conversational
-interface**, driving the core through **25 tools**:
+interface**, driving the core through **26 tools**:
 
 | Tool | Purpose |
 |---|---|
@@ -87,6 +87,7 @@ interface**, driving the core through **25 tools**:
 | `analyze_holdings` | Holdings X-Ray + target drift + rebalance trades + suitability checks |
 | `run_monte_carlo` | Wealth-path simulation + goal probability + drawdown/VaR + scenario stress |
 | `get_risk_attribution` | Return/risk/factor attribution, beta, R², alpha and residual risk |
+| `get_kairos_ensemble` | Correlation-pruned equal/inverse-vol/risk-parity strategy ensemble |
 | `explain_product` | Product risk education (risk first, return second) |
 
 ### Kairos Ecosystem Integration ★ (`integrations/kairos.py`)
@@ -120,6 +121,11 @@ as before.
   level, blends at `budget × invested`, and re-clips to suitability class caps.
   The plan/report show budget cap, actual portfolio weight and Atlas coverage.
   Disabled by default; it is an explicit research overlay, not an automatic bet.
+- **Strategy ensemble / meta-allocator** (`integrations/kairos_ensemble.py`):
+  correlation-prunes the lab leaderboard (greedy by Sharpe) and blends survivors
+  with equal / inverse-vol / risk-parity weights. The dashboard panel compares
+  ensemble vs best-single vs equal-weight and can use the ensemble as a bounded
+  satellite sleeve; `get_kairos_ensemble` exposes it to the LLM.
 - **Config** (`config/agent.yaml`):
 
 ```yaml
@@ -455,7 +461,7 @@ pip install -r requirements.txt          # numpy/pandas/scipy/matplotlib/openai/
 
 make demo        # offline demo: mass / affluent / HNW → examples/demo_outputs/
 make lint        # ruff static checks (pip install -r requirements-dev.txt)
-make test        # unit + integration tests (231)
+make test        # unit + integration tests (235)
 make eval        # compliance gate (weight legality / caps / disclaimer / segment access)
 make sft         # generate 400 SFT conversations → training/sft_data/train.jsonl
 
@@ -552,7 +558,7 @@ invest_agent/
                   #   backtest(walk-forward) / tactical(momentum+trend gate) /
                   #   rebalance(target-vs-current drift monitor)
   data/           # base / synthetic / akshare / kairos / universe (26 assets)
-  tools/          # 25 tools exposed to the LLM
+  tools/          # 26 tools exposed to the LLM
   charts.py, report.py, cli.py
 config/           # assets.yaml, risk_profiles.yaml, agent.yaml
 integrations/kairos_strategies.py  # ★ 106-strategy lab / cached leaderboard
@@ -564,7 +570,7 @@ docs/               # architecture, portfolio math, factors, operations and test
 training/         # README / generate_sft_data.py / build_real_dataset.py /
                   # eval/(compliance + requirement benchmark) / finetune/
 examples/factor_library_sample/  # factor-library sample (full lib: ATLAS_FACTOR_DIR)
-tests/            # 231 tests (offline, synthetic provider)
+tests/            # 235 tests (offline, synthetic provider)
 .streamlit/config.toml + dashboard/style.py  # Jane Street-style light theme
 dashboard/i18n.py  # zh-Hans / en / zh-Hant UI catalog + entity labels
 .github/workflows/ci.yml  # GitHub Actions: lint + tests (3.10/3.12/3.13) + gates
