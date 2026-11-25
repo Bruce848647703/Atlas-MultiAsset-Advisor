@@ -224,6 +224,17 @@ st.divider()
 # ----------------------------------------------------------------------
 # 家办式全球资产落位 Global Basing (资产画像问卷 + base 打分)
 # ----------------------------------------------------------------------
+def _liquidity_from_q8() -> str:
+    """Single source of truth: the questionnaire's liquidity answer."""
+    raw = st.session_state.get(
+        "atlas_q8", st.session_state.get("atlas_answers_persist", {}).get(8, 2))
+    try:
+        idx = max(0, min(3, int(raw)))
+    except (TypeError, ValueError):
+        idx = 2
+    return {0: "high", 1: "medium", 2: "low", 3: "low"}[idx]
+
+
 st.subheader(t("base.title", lang))
 st.caption(t("base.intro", lang))
 with st.expander(t("base.profile", lang), expanded=True):
@@ -238,9 +249,7 @@ with st.expander(t("base.profile", lang), expanded=True):
         "ap_types_persist", ["cash_deposit", "cn_fund"]) if x in _ap_type_labels]
     _saved_accts = [x for x in st.session_state.get(
         "ap_accts_persist", ["none"]) if x in _ap_acct_labels]
-    _saved_liq = st.session_state.get("ap_liq_persist", "medium")
-    if _saved_liq not in ("low", "medium", "high"):
-        _saved_liq = "medium"
+    _ap_liq = _liquidity_from_q8()
     with _ap_c1:
         _ap_types = st.multiselect(
             t("base.holdings", lang), list(_ap_type_labels),
@@ -256,57 +265,79 @@ with st.expander(t("base.profile", lang), expanded=True):
             t("base.accounts", lang), list(_ap_acct_labels),
             default=_saved_accts, format_func=lambda x: _ap_acct_labels.get(x, x),
             key="ap_accts")
-        _ap_liq = st.selectbox(
-            t("base.liquidity", lang), ["low", "medium", "high"],
-            index=["low", "medium", "high"].index(_saved_liq),
-            format_func=lambda x: liquidity_label(x, lang), key="ap_liq")
+        st.caption(t("base.liq_from_q", lang,
+                     value=liquidity_label(_ap_liq, lang)))
     _ap_capital = st.number_input(
         t("base.capital", lang), min_value=10_000, max_value=1_000_000_000_000,
         value=int(st.session_state.get("ap_capital_persist", 500_000)),
         step=50_000, key="ap_capital")
     st.session_state["ap_types_persist"] = list(_ap_types)
     st.session_state["ap_accts_persist"] = list(_ap_accts)
-    st.session_state["ap_liq_persist"] = _ap_liq
     st.session_state["ap_overseas_pct_persist"] = int(_ap_overseas_pct)
     st.session_state["ap_capital_persist"] = _ap_capital
     _ap_gen = st.button(t("base.generate", lang), key="gen_bases")
+    # Live values from the sidebar widgets (they may differ from the persisted
+    # shadows on the first rerun after a user edit).
+    _live_capital = float(st.session_state.get(
+        "capital", st.session_state.get("capital_persist", 300_000)))
+    _live_free = str(st.session_state.get(
+        "free_text", st.session_state.get("free_text_persist", "")) or "")
 if _ap_gen:
     from invest_agent.global_base import AssetProfile, recommend_bases  # noqa: E402
-    _ap_type_ids = [x for x in _ap_types if x in _ap_type_labels]
-    _ap = AssetProfile(
-        asset_types=_ap_type_ids,
-        overseas_pct=float(_ap_overseas_pct),
-        overseas_accounts=[a for a in _ap_accts if a in _ap_acct_labels] or ["none"],
-        total_capital=float(_ap_capital),
-        crypto_held=("crypto" in _ap_type_ids),
-        liquidity_need=_ap_liq,
-    )
-    # Risk tier: follow the current questionnaire answers, not a stale plan.
-    _tier = "C3"
+    if float(_ap_capital) < _live_capital:
+        st.error(t("base.capital_conflict", lang, capital=_live_capital))
+    else:
+        _ap_type_ids = [x for x in _ap_types if x in _ap_type_labels]
+        _ap = AssetProfile(
+            asset_types=_ap_type_ids,
+            overseas_pct=float(_ap_overseas_pct),
+            overseas_accounts=[a for a in _ap_accts if a in _ap_acct_labels] or ["none"],
+            total_capital=float(_ap_capital),
+            crypto_held=("crypto" in _ap_type_ids),
+            liquidity_need=_ap_liq,
+        )
+        # Risk tier: follow the current questionnaire answers and current
+        # sidebar inputs, not a stale plan.
+        _tier = "C3"
+        try:
+            _ans_now = {
+                i: st.session_state.get(
+                    f"atlas_q{i}",
+                    st.session_state.get("atlas_answers_persist", {}).get(i, 2))
+                for i in range(len(QUESTIONS))
+            }
+            _tier = profile_from_answers(
+                _ans_now, capital=_live_capital, free_text=_live_free).tier
+        except Exception:  # noqa: BLE001
+            if st.session_state.get("atlas_result"):
+                try:
+                    _tier = st.session_state["atlas_result"]["profile"].tier
+                except Exception:  # noqa: BLE001
+                    pass
+        st.session_state["atlas_asset_profile"] = _ap  # reuse in final advice
+        st.session_state["atlas_bases"] = {
+            "tier": _tier,
+            "ranked": recommend_bases(_tier, _ap),
+            "total_capital": float(_ap_capital),
+        }
+if st.session_state.get("atlas_bases"):
+    _b = st.session_state["atlas_bases"]
+    st.markdown(t("base.result_title", lang, tier=_b["tier"]))
     try:
-        _ans_now = {
+        _cur_answers = {
             i: st.session_state.get(
                 f"atlas_q{i}",
                 st.session_state.get("atlas_answers_persist", {}).get(i, 2))
             for i in range(len(QUESTIONS))
         }
-        _tier = profile_from_answers(
-            _ans_now,
-            capital=float(st.session_state.get("capital_persist", 300_000)),
-            free_text=st.session_state.get("free_text_persist", ""),
-        ).tier
+        _cur_tier = profile_from_answers(
+            _cur_answers, capital=_live_capital, free_text=_live_free).tier
     except Exception:  # noqa: BLE001
-        if st.session_state.get("atlas_result"):
-            try:
-                _tier = st.session_state["atlas_result"]["profile"].tier
-            except Exception:  # noqa: BLE001
-                pass
-    st.session_state["atlas_asset_profile"] = _ap     # reuse in final advice
-    st.session_state["atlas_bases"] = {"tier": _tier,
-                                       "ranked": recommend_bases(_tier, _ap)}
-if st.session_state.get("atlas_bases"):
-    _b = st.session_state["atlas_bases"]
-    st.markdown(t("base.result_title", lang, tier=_b["tier"]))
+        _cur_tier = _b["tier"]
+    if (_b.get("total_capital", 0) < _live_capital
+            or _b.get("tier") != _cur_tier):
+        st.warning(t("base.stale", lang, tier=_b["tier"],
+                     capital=_b.get("total_capital", 0)))
     _brows = []
     for i, r in enumerate(_b["ranked"], 1):
         _b_reasons = ("; ".join(r["reasons"][:2]) or t("base.fallback_reason", lang)) \
@@ -358,13 +389,17 @@ with st.sidebar:
         value=int(st.session_state.get("capital_persist", 300_000)),
         step=10_000, key="capital")
     st.session_state["capital_persist"] = capital
+    _free_saved = st.session_state.get("free_text_persist", "")
+    # Backward compatibility: older sessions persisted a default sentence that
+    # contradicted the questionnaire; treat it as "not provided" once.
+    if _free_saved in ("能接受短期波动，但不想亏掉本金",
+                       "Can tolerate short-term swings, but not losing principal"):
+        _free_saved = ""
     free_text = st.text_input(
         t("side.free_text", lang),
-        value=st.session_state.get(
-            "free_text_persist",
-            pick("能接受短期波动，但不想亏掉本金",
-                 "Can tolerate short-term swings, but not losing principal", lang)),
-        max_chars=2000, key="free_text")
+        value=_free_saved,
+        max_chars=2000, key="free_text",
+        placeholder=t("side.free_text_placeholder", lang))
     st.session_state["free_text_persist"] = free_text
     use_contrib = st.checkbox(
         t("side.custom_contrib", lang),
@@ -513,6 +548,30 @@ for i, (_w, _q_zh, _q_en, opts) in enumerate(QUESTIONS):
         )
 st.session_state["atlas_answers_persist"] = {i: int(v) for i, v in answers.items()}
 
+# Show how the questionnaire and the free-text note combine, so the left
+# sidebar and this questionnaire can never silently disagree about the tier.
+_risk_now = profile_from_answers(answers, capital=float(capital),
+                                 free_text=free_text or "")
+st.session_state["atlas_live_profile"] = _risk_now
+_rk1, _rk2, _rk3 = st.columns(3)
+_rk1.metric(t("risk.questionnaire", lang),
+            f"{_risk_now.base_tier} · {_risk_now.base_score:.0f}")
+_rk2.metric(t("risk.final", lang),
+            f"{_risk_now.tier} · {_risk_now.score:.0f}")
+_rk3.metric(t("risk.text_effect", lang),
+            f"{_risk_now.text_adjustment:+.0f}" if free_text else "—")
+if free_text and _risk_now.tier_capped:
+    st.warning(t("risk.conflict_up", lang, text_tier=_risk_now.text_tier,
+                 base_tier=_risk_now.base_tier, tier=_risk_now.tier))
+elif free_text and _risk_now.text_tier and _risk_now.text_tier != _risk_now.base_tier:
+    st.info(t("risk.conflict_down", lang, text_tier=_risk_now.text_tier,
+              tier=_risk_now.tier))
+elif free_text and _risk_now.text_tier:
+    st.caption(t("risk.match", lang, tier=_risk_now.tier))
+else:
+    st.caption(t("risk.base_only", lang, tier=_risk_now.tier,
+                 score=_risk_now.score))
+
 # ----------------------------------------------------------------------
 # Generate
 # ----------------------------------------------------------------------
@@ -588,7 +647,7 @@ if res is None:
 
 plan, profile = res["plan"], res["profile"]
 if res.get("_signature") and res["_signature"] != _input_signature():
-    st.warning(t("gen.stale", lang))
+    st.warning(t("gen.stale", lang, old=profile.tier, new=_risk_now.tier))
 st.subheader(t("res.title", lang, tier=profile.tier,
                tier_label=tier_label(profile.tier_info, lang),
                score=profile.score, segment=segment_label(plan.segment, lang),
@@ -654,8 +713,11 @@ if _gen_fa:
         # Keep the user's asset mix, but use the current capital: otherwise a
         # capital change followed by "generate plan" leaves final advice using
         # the old capital until the user re-runs the basing panel.
-        _ap_fa = _dc_replace(st.session_state["atlas_asset_profile"],
-                             total_capital=float(capital))
+        _ap_fa = _dc_replace(
+            st.session_state["atlas_asset_profile"],
+            total_capital=float(capital),
+            liquidity_need=_liquidity_from_q8(),
+        )
     with st.spinner(t("fa.spinner", lang)):
         try:
             _fa = build_final_advice(plan, profile, _ap_fa, provider_name=provider)

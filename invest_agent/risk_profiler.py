@@ -43,6 +43,7 @@ QUESTIONS: List[Tuple[int, str, str, List[Tuple[str, str, int]]]] = [
 ]
 
 MAX_SCORE = sum(w * 3 for w, *_ in QUESTIONS)
+_TIER_ORDER = {"C1": 1, "C2": 2, "C3": 3, "C4": 4, "C5": 5}
 
 POSITIVE_KEYWORDS = {
     "高收益": 8, "翻倍": 10, "激进": 8, "all in": 10, "allin": 10, "抄底": 6, "加仓": 4,
@@ -79,6 +80,12 @@ class RiskProfile:
     answers: Dict[int, int] = field(default_factory=dict)
     notes: List[str] = field(default_factory=list)
     free_text: str = ""
+    # Audit trail so the UI can explain how the final tier was reached:
+    base_score: float = 0.0        # questionnaire-only score
+    base_tier: str = ""            # questionnaire-only tier
+    text_tier: str = ""            # tier implied by free text (before the cap)
+    text_adjustment: float = 0.0   # free-text score adjustment
+    tier_capped: bool = False      # text wanted a higher tier; questionnaire capped it
 
     @property
     def tier_info(self) -> dict:
@@ -155,23 +162,45 @@ def profile_from_answers(
     if horizon_years is not None:
         horizon_years = integer(horizon_years, "投资期限 horizon_years",
                                 minimum=1, maximum=50)
-    base, tier = score_questionnaire(answers)
+    base, base_tier = score_questionnaire(answers)
     notes: List[str] = [f"questionnaire score={base}"]
+    score = base
+    tier = base_tier
+    text_tier = ""
+    adjustment = 0.0
+    tier_capped = False
     if free_text:
         adj, reasons = heuristic_text_adjustment(free_text)
+        adjustment = adj
         if reasons:
             notes.extend(reasons)
-        score = max(0.0, min(100.0, base + adj))
-        tier = tier_from_score(score)
-        notes.append(f"adjusted score={score}")
-    else:
-        score = base
+            adjusted = max(0.0, min(100.0, base + adj))
+            text_tier = tier_from_score(adjusted)
+            # Free text is descriptive evidence, not a way to bypass the
+            # structured suitability questionnaire. It may lower the tier
+            # (more conservative) but never raise it above the questionnaire;
+            # otherwise the sidebar/notes and the questionnaire visibly
+            # contradict each other.
+            if _TIER_ORDER[text_tier] > _TIER_ORDER[base_tier]:
+                tier = base_tier
+                capped_score = risk_tiers()[base_tier]["score_range"][1]
+                score = min(adjusted, float(capped_score))
+                tier_capped = True
+                notes.append(
+                    f"free-text view={text_tier} is above questionnaire={base_tier}; "
+                    f"capped at {base_tier}")
+            else:
+                score = adjusted
+                tier = text_tier
+                notes.append(f"adjusted score={score}")
     if horizon_years is None and 5 in answers:
         horizon_years = {0: 1, 1: 2, 2: 4, 3: 7}[max(0, min(int(answers[5]), 3))]
     return RiskProfile(
         score=score, tier=tier, capital=capital,
         horizon_years=horizon_years or 3, answers=answers, notes=notes,
-        free_text=free_text,
+        free_text=free_text, base_score=base, base_tier=base_tier,
+        text_tier=text_tier, text_adjustment=adjustment,
+        tier_capped=tier_capped,
     )
 
 

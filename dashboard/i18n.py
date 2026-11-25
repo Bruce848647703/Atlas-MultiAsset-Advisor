@@ -73,10 +73,20 @@ S = {
     "base.overseas_pct": ("现有资产中境外占比 (%)", "Overseas share of current assets (%)"),
     "base.accounts": ("已开立的境外账户", "Overseas accounts opened"),
     "base.liquidity": ("流动性需求", "Liquidity need"),
+    "base.liq_from_q": ("流动性需求（来自问卷流动性问题）：{value}",
+                        "Liquidity need (from the questionnaire): {value}"),
     "base.liq_low": ("低（长期不动用）", "Low (long-term)"),
     "base.liq_mid": ("中", "Medium"),
     "base.liq_high": ("高（随时可能用）", "High (may need anytime)"),
     "base.capital": ("总资产规模 (CNY)", "Total assets (CNY)"),
+    "base.capital_conflict": ("总资产规模不能小于可投资本金（当前可投资本金 ¥{capital:,.0f}）。",
+                              "Total assets cannot be lower than investable capital "
+                              "(currently ¥{capital:,.0f})."),
+    "base.stale": ("落位建议基于上一组输入（适当性 {tier} / 总资产 ¥{capital:,.0f}），"
+                   "请重新生成以匹配当前问卷与本金。",
+                   "Basing advice used older inputs (tier {tier} / total assets "
+                   "¥{capital:,.0f}); regenerate it to match the current questionnaire "
+                   "and capital."),
     "base.generate": ("生成落位建议", "Generate basing advice"),
     "base.result_title": ("② 全球落位建议（适当性 {tier}）— 按「适配度 × (1 − 摩擦)」打分",
                           "② Global basing advice (suitability {tier}) — fit × (1 − friction)"),
@@ -99,6 +109,9 @@ S = {
     "side.inputs": ("投资者输入", "Investor Inputs"),
     "side.capital": ("可投资本金 (CNY)", "Investable capital (CNY)"),
     "side.free_text": ("风险态度 / 目标补充", "Risk attitude / goal notes"),
+    "side.free_text_placeholder": ("可选。例：能接受短期波动，但不想亏掉本金",
+                                   "Optional. e.g. can tolerate short-term swings, "
+                                   "but not losing principal"),
     "side.custom_contrib": ("自定义每月定投额", "Custom monthly contribution"),
     "side.monthly": ("每月定投 (CNY)", "Monthly contribution (CNY)"),
     "side.provider": ("数据源", "Data source"),
@@ -107,8 +120,8 @@ S = {
                            "synthetic=offline simulated market; merged=akshare real data + synthetic fill; "
                            "kairos=Kairos real ETF panel (offline)"),
     "side.strategy": ("策略", "Strategy"),
-    "side.strategy_tier_hint": ("当前问卷等级 {tier}：策略列表已按适当性过滤，无效选项会自动回到自动选择。",
-                                "Current questionnaire tier {tier}: strategies are filtered by "
+    "side.strategy_tier_hint": ("当前综合风险等级 {tier}：策略列表已按适当性过滤，无效选项会自动回到自动选择。",
+                                "Current combined risk tier {tier}: strategies are filtered by "
                                 "suitability; invalid choices fall back to Auto."),
     "side.auto": ("自动选择（按画像匹配）", "Auto (match profile)"),
     "side.timing": ("主观择时（可选）", "Market timing (optional)"),
@@ -142,6 +155,21 @@ S = {
     ),
     # questionnaire / generation
     "q.title": ("① 适当性问卷", "① Suitability Questionnaire"),
+    "risk.questionnaire": ("问卷评级", "Questionnaire tier"),
+    "risk.final": ("综合评级", "Final tier"),
+    "risk.text_effect": ("文字调整", "Text adjustment"),
+    "risk.match": ("问卷与文字描述一致：{tier}。",
+                   "The questionnaire and notes agree: {tier}."),
+    "risk.conflict_up": ("文字描述比问卷更激进（{text_tier}），已按问卷的 {base_tier} 执行；"
+                         "如确实能承受更高风险，请同步调整上方问卷答案。",
+                         "The notes imply a higher tier ({text_tier}) than the "
+                         "questionnaire ({base_tier}); using the questionnaire tier. "
+                         "Adjust the questionnaire if the notes reflect you better."),
+    "risk.conflict_down": ("文字描述比问卷更保守（{text_tier}），已按更保守的 {tier} 执行。",
+                           "The notes imply a more conservative tier ({text_tier}); "
+                           "using the more conservative {tier}."),
+    "risk.base_only": ("风险等级由问卷决定：{tier}（评分 {score:.0f}）。",
+                       "Risk tier from the questionnaire only: {tier} (score {score:.0f})."),
     "q.prefix": ("Q{n}. {q}", "Q{n}. {q}"),
     "gen.title": ("② 生成方案", "② Generate"),
     "gen.button": ("生成方案", "Generate plan"),
@@ -153,8 +181,10 @@ S = {
                   "Generation failed: {err}\nAdjust the questionnaire/strategy and retry, "
                   "or use Auto strategy in the sidebar."),
     "gen.need_input": ("请先完成问卷并点击「生成方案」。", "Complete the questionnaire and click Generate plan."),
-    "gen.stale": ("问卷或输入已修改，下方仍是上一次生成的方案。请重新点击「生成方案」以更新结果。",
-                  "Inputs or questionnaire have changed; the results below are from the previous run. "
+    "gen.stale": ("问卷或输入已修改：当前综合等级 {new}，下方仍是按 {old} 生成的方案。"
+                  "请重新点击「生成方案」以更新结果。",
+                  "Inputs or questionnaire have changed: current combined tier is {new}, "
+                  "but the results below were generated for {old}. "
                   "Click Generate plan again to refresh."),
     # results
     "res.title": ("③ 结果：适当性 {tier} {tier_label}（评分 {score:.0f}）· 客群 {segment} · 数据源 {provider}",
