@@ -219,5 +219,7 @@ def summary() -> Dict[str, Any]:
 
 
 def latest_weights() -> Dict[str, Any]:
-    pack = build_ensemble()
+    # Prefer the ensemble the user actually built (which may have a different
+    # N / correlation threshold / method), not a fresh default configuration.
+    pack = load_cached() or build_ensemble()
     return pack.get("latest", {}) if pack.get("available") else {}
