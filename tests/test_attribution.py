@@ -43,6 +43,16 @@ def test_attribution_is_deterministic():
     assert a["risk"] == b["risk"]
 
 
+def test_attribution_aligns_range_index_equity_curve():
+    plan = _plan()
+    plan.equity_curve = pd.Series(
+        plan.equity_curve.values, index=pd.RangeIndex(len(plan.equity_curve)))
+    out = attribution.analyze(plan)
+    assert out["available"] is True
+    assert out["factor"]["available"] is True
+    assert out["factor"]["n_obs"] >= 24
+
+
 def test_attribution_degrades_with_short_history():
     plan = _plan()
     plan.n_months = 6

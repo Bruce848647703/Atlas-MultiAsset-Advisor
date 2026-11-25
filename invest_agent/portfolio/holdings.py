@@ -26,6 +26,10 @@ import re
 from typing import Any, Dict, Iterable, List, Optional, Sequence
 
 CASH_ALIASES = {"cash", "cny", "cash_cny", "现金", "现金/存款/货基"}
+MAX_CSV_BYTES = 5 * 1024 * 1024      # 5 MB is far beyond a retail holdings file
+MAX_CSV_ROWS = 2000                 # avoids pathological uploads freezing the UI
+MIN_FX_TO_CNY = 0.001               # JPY/CNY is ~0.05; allow tiny but sane
+MAX_FX_TO_CNY = 50.0                # covers KWD/BHD; a fat-fingered 72 is caught
 _ALIASES = {
     "symbol": {"symbol", "ticker", "asset", "asset_id", "code", "代码", "标的"},
     "market_value": {"market_value", "value", "amount", "市值", "金额"},
@@ -73,11 +77,12 @@ def _num(value: Any, field: str, errors: List[str], row_no: int) -> Optional[flo
 def _symbol_map(universe: Sequence) -> Dict[str, Any]:
     out: Dict[str, Any] = {}
     for asset in universe:
+        symbol_ak = str(asset.meta.get("symbol_ak") or "").lower()
         candidates = {
             str(asset.id).lower(),
             str(asset.name_zh).lower(),
             str(asset.name_en).lower(),
-            str(asset.meta.get("symbol_ak", "")).lower(),
+            symbol_ak,
         }
         for raw in list(candidates):
             if not raw:
@@ -97,7 +102,18 @@ def _normalise_symbol(symbol: str) -> str:
 
 def parse_csv(content: bytes | str) -> List[Dict[str, Any]]:
     if isinstance(content, bytes):
-        text = content.decode("utf-8-sig")
+        if len(content) > MAX_CSV_BYTES:
+            raise ValueError(
+                f"CSV 文件过大（>{MAX_CSV_BYTES // (1024 * 1024)} MB），"
+                "请只保留持仓明细")
+        try:
+            text = content.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            # Excel on a Chinese Windows machine often exports GBK/GB18030.
+            try:
+                text = content.decode("gb18030")
+            except UnicodeDecodeError as exc:
+                raise ValueError("CSV 编码无法识别，请另存为 UTF-8 后重试") from exc
     else:
         text = str(content)
     # tolerate Excel exports with a title row before the header
@@ -114,6 +130,9 @@ def parse_csv(content: bytes | str) -> List[Dict[str, Any]]:
     for row in reader:
         cleaned = {(k or "").strip().lower(): v for k, v in row.items()}
         rows.append(cleaned)
+        if len(rows) > MAX_CSV_ROWS:
+            raise ValueError(
+                f"CSV 行数过多（>{MAX_CSV_ROWS} 行），请只保留持仓明细")
     return rows
 
 
@@ -129,6 +148,9 @@ def parse_holdings(rows: Iterable[Dict[str, Any]],
     holdings: Dict[str, Dict[str, Any]] = {}
 
     for row_no, row in enumerate(rows, 1):
+        if row_no > MAX_CSV_ROWS:
+            errors.append(f"持仓行数过多（>{MAX_CSV_ROWS} 行），请只保留持仓明细")
+            break
         symbol = _key(row, "symbol")
         if symbol in (None, ""):
             errors.append(f"row {row_no}: symbol 不能为空")
@@ -148,6 +170,13 @@ def parse_holdings(rows: Iterable[Dict[str, Any]],
         price = _num(_key(row, "price"), "price", errors, row_no)
         cost = _num(_key(row, "cost"), "cost", errors, row_no)
         market_value = _num(_key(row, "market_value"), "market_value", errors, row_no)
+        for _label, _value in (("shares", shares), ("price", price),
+                               ("cost", cost)):
+            if _value is not None and _value < 0:
+                errors.append(f"row {row_no}: {_label} 不能为负数")
+                continue
+        if any(v is not None and v < 0 for v in (shares, price, cost)):
+            continue
         if market_value is None:
             if shares is not None and price is not None:
                 market_value = shares * price
@@ -164,6 +193,11 @@ def parse_holdings(rows: Iterable[Dict[str, Any]],
             fx = 1.0
         elif fx is None or fx <= 0:
             errors.append(f"row {row_no}: 非 CNY 币种需要正数 fx_to_cny")
+            continue
+        elif not (MIN_FX_TO_CNY <= fx <= MAX_FX_TO_CNY):
+            errors.append(
+                f"row {row_no}: fx_to_cny={fx:g} 超出合理范围 "
+                f"({MIN_FX_TO_CNY:g}-{MAX_FX_TO_CNY:g})，请检查汇率")
             continue
         market_value_cny = market_value * fx
 

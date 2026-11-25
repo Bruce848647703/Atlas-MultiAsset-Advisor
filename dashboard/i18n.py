@@ -251,6 +251,7 @@ S = {
     "holdings.spinner": ("解析并计算组合 X-Ray...", "Parsing and computing X-Ray..."),
     "holdings.no_file": ("请先选择 CSV 文件。", "Choose a CSV file first."),
     "holdings.errors": ("以下行无法解析：", "Rows that could not be parsed:"),
+    "holdings.errors_more": ("… 另有 {n} 条未显示", "… and {n} more"),
     "holdings.warnings": ("提示：", "Warnings:"),
     "holdings.total": ("组合总市值", "Total value"),
     "holdings.top1": ("最大单一持仓", "Top holding"),

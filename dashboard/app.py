@@ -567,9 +567,12 @@ if run:
             )
         res["_signature"] = _input_signature()
         st.session_state["atlas_result"] = res
-        # simulation belongs to the previous plan
+        # Derived research belongs to the previous plan: clear it so the UI
+        # never shows stale final advice / council for a different allocation.
         st.session_state.pop("atlas_mc", None)
         st.session_state.pop("atlas_attribution", None)
+        st.session_state.pop("atlas_final_advice", None)
+        st.session_state.pop("atlas_council", None)
     except InputValidationError as e:
         st.error(str(e))
     except Exception as e:  # noqa: BLE001 - friendly error instead of traceback
@@ -647,7 +650,12 @@ if _gen_fa:
     _ap_fa = AssetProfile(asset_types=["cash_deposit", "cn_fund"],
                           total_capital=float(capital))
     if st.session_state.get("atlas_asset_profile"):
-        _ap_fa = st.session_state["atlas_asset_profile"]
+        from dataclasses import replace as _dc_replace  # noqa: E402
+        # Keep the user's asset mix, but use the current capital: otherwise a
+        # capital change followed by "generate plan" leaves final advice using
+        # the old capital until the user re-runs the basing panel.
+        _ap_fa = _dc_replace(st.session_state["atlas_asset_profile"],
+                             total_capital=float(capital))
     with st.spinner(t("fa.spinner", lang)):
         try:
             _fa = build_final_advice(plan, profile, _ap_fa, provider_name=provider)
@@ -908,8 +916,12 @@ with st.expander(t("holdings.title", lang), expanded=False):
     _hx = st.session_state.get("atlas_holdings")
     if _hx:
         if _hx.get("errors"):
-            st.error(t("holdings.errors", lang) + "\n" +
-                     "\n".join(f"- {e}" for e in _hx["errors"]))
+            _errs = _hx["errors"]
+            _shown = "\n".join(f"- {e}" for e in _errs[:20])
+            _more = (t("holdings.errors_more", lang, n=len(_errs) - 20)
+                     if len(_errs) > 20 else "")
+            st.error(t("holdings.errors", lang) + "\n" + _shown
+                     + (f"\n{_more}" if _more else ""))
         if _hx.get("warnings"):
             st.caption(t("holdings.warnings", lang) + " " + "; ".join(_hx["warnings"][:6]))
         if _hx.get("available"):
@@ -1672,19 +1684,15 @@ with st.expander(t("report.title", lang)):
     _fa_rep = st.session_state.get("atlas_final_advice")
     _cc_rep = st.session_state.get("atlas_council")
     _cc_rep = _cc_rep if (_cc_rep and not _cc_rep.get("error")) else None
-    if ((_fa_rep and not _fa_rep.get("error")) or _cc_rep
-            or lang == "en" or st.session_state.get("atlas_holdings")
-            or st.session_state.get("atlas_mc")
-            or st.session_state.get("atlas_attribution")):
-        from invest_agent.report import build_report as _br  # noqa: E402
-        _rep_src = _br(plan, res["charts"],
-                       lang="en" if lang == "en" else "zh",
-                       final_advice=(_fa_rep if _fa_rep and not _fa_rep.get("error") else None),
-                       analyst_council=_cc_rep,
-                       holdings=st.session_state.get("atlas_holdings"),
-                       monte_carlo=st.session_state.get("atlas_mc"),
-                       attribution=st.session_state.get("atlas_attribution"))
-    else:
-        _rep_src = res["report"]
+    # Always rebuild in the current language: a report generated in English
+    # must not stay English after switching to Chinese (and vice versa).
+    from invest_agent.report import build_report as _br  # noqa: E402
+    _rep_src = _br(plan, res["charts"],
+                   lang="en" if lang == "en" else "zh",
+                   final_advice=(_fa_rep if _fa_rep and not _fa_rep.get("error") else None),
+                   analyst_council=_cc_rep,
+                   holdings=st.session_state.get("atlas_holdings"),
+                   monte_carlo=st.session_state.get("atlas_mc"),
+                   attribution=st.session_state.get("atlas_attribution"))
     _report_text = _re.sub(r"!\[([^\]]*)\]\(([^)]+)\)", _embed, _rep_src)
     st.markdown(to_hant(_report_text) if lang == "zh-Hant" else _report_text)
