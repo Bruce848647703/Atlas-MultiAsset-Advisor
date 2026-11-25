@@ -275,27 +275,49 @@ with st.expander(t("base.profile", lang), expanded=True):
     st.session_state["ap_accts_persist"] = list(_ap_accts)
     st.session_state["ap_overseas_pct_persist"] = int(_ap_overseas_pct)
     st.session_state["ap_capital_persist"] = _ap_capital
-    _ap_gen = st.button(t("base.generate", lang), key="gen_bases")
     # Live values from the sidebar widgets (they may differ from the persisted
     # shadows on the first rerun after a user edit).
     _live_capital = float(st.session_state.get(
         "capital", st.session_state.get("capital_persist", 300_000)))
     _live_free = str(st.session_state.get(
         "free_text", st.session_state.get("free_text_persist", "")) or "")
-if _ap_gen:
-    from invest_agent.global_base import AssetProfile, recommend_bases  # noqa: E402
-    if float(_ap_capital) < _live_capital:
-        st.error(t("base.capital_conflict", lang, capital=_live_capital))
-    else:
-        _ap_type_ids = [x for x in _ap_types if x in _ap_type_labels]
-        _ap = AssetProfile(
-            asset_types=_ap_type_ids,
+    _ap_sig = json.dumps({
+        "types": sorted(_ap_types),
+        "overseas_pct": int(_ap_overseas_pct),
+        "accounts": sorted(_ap_accts),
+        "total_capital": float(_ap_capital),
+        "liquidity": _ap_liq,
+    }, sort_keys=True, ensure_ascii=False)
+    _prev_ap_sig = st.session_state.get("atlas_basing_sig")
+    st.session_state["atlas_basing_sig"] = _ap_sig
+    if (_prev_ap_sig is not None and _prev_ap_sig != _ap_sig
+            and st.session_state.get("atlas_final_advice")):
+        # Final advice was fused from the old asset profile; drop it instead of
+        # showing advice that contradicts the visible basing inputs.
+        st.session_state.pop("atlas_final_advice", None)
+        st.session_state["atlas_final_advice_cleared"] = True
+
+    def _current_asset_profile():
+        from invest_agent.global_base import AssetProfile  # noqa: E402
+        return AssetProfile(
+            asset_types=[x for x in _ap_types if x in _ap_type_labels],
             overseas_pct=float(_ap_overseas_pct),
             overseas_accounts=[a for a in _ap_accts if a in _ap_acct_labels] or ["none"],
             total_capital=float(_ap_capital),
-            crypto_held=("crypto" in _ap_type_ids),
+            crypto_held=("crypto" in _ap_types),
             liquidity_need=_ap_liq,
         )
+
+    _ap_gen = st.button(t("base.generate", lang), key="gen_bases")
+    _capital_conflict = float(_ap_capital) < _live_capital
+    if _capital_conflict and not _ap_gen:
+        st.warning(t("base.capital_conflict", lang, capital=_live_capital))
+if _ap_gen:
+    from invest_agent.global_base import recommend_bases  # noqa: E402
+    if _capital_conflict:
+        st.error(t("base.capital_conflict", lang, capital=_live_capital))
+    else:
+        _ap = _current_asset_profile()
         # Risk tier: follow the current questionnaire answers and current
         # sidebar inputs, not a stale plan.
         _tier = "C3"
@@ -319,6 +341,7 @@ if _ap_gen:
             "tier": _tier,
             "ranked": recommend_bases(_tier, _ap),
             "total_capital": float(_ap_capital),
+            "sig": _ap_sig,
         }
 if st.session_state.get("atlas_bases"):
     _b = st.session_state["atlas_bases"]
@@ -334,7 +357,8 @@ if st.session_state.get("atlas_bases"):
             _cur_answers, capital=_live_capital, free_text=_live_free).tier
     except Exception:  # noqa: BLE001
         _cur_tier = _b["tier"]
-    if (_b.get("total_capital", 0) < _live_capital
+    if ((_b.get("sig") is not None and _b["sig"] != _ap_sig)
+            or _b.get("total_capital", 0) < _live_capital
             or _b.get("tier") != _cur_tier):
         st.warning(t("base.stale", lang, tier=_b["tier"],
                      capital=_b.get("total_capital", 0)))
@@ -559,7 +583,7 @@ _rk1.metric(t("risk.questionnaire", lang),
 _rk2.metric(t("risk.final", lang),
             f"{_risk_now.tier} · {_risk_now.score:.0f}")
 _rk3.metric(t("risk.text_effect", lang),
-            f"{_risk_now.text_adjustment:+.0f}" if free_text else "—")
+            f"{_risk_now.text_adjustment:+.0f}" if _risk_now.text_tier else "—")
 if free_text and _risk_now.tier_capped:
     st.warning(t("risk.conflict_up", lang, text_tier=_risk_now.text_tier,
                  base_tier=_risk_now.base_tier, tier=_risk_now.tier))
@@ -598,6 +622,13 @@ def _input_signature() -> str:
             "sliders": {k: float(v) for k, v in _t_sliders.items()},
         },
         "satellite": [satellite_choice, float(satellite_budget)],
+        # A plan built on a satellite strategy must notice when the underlying
+        # strategy-lab / ensemble cache is rebuilt (latest weights may change).
+        "satellite_cache": (
+            {"lab": (kairos_lab.load_cached() or {}).get("generated_at", ""),
+             "ensemble": (kairos_ens.load_cached() or {}).get("cache_key", "")}
+            if satellite_choice != "none" else {}
+        ),
     }, sort_keys=True, ensure_ascii=False)
 
 
@@ -646,8 +677,16 @@ if res is None:
     st.stop()
 
 plan, profile = res["plan"], res["profile"]
-if res.get("_signature") and res["_signature"] != _input_signature():
+_plan_stale = bool(res.get("_signature") and res["_signature"] != _input_signature())
+if _plan_stale:
     st.warning(t("gen.stale", lang, old=profile.tier, new=_risk_now.tier))
+    if (st.session_state.get("atlas_final_advice")
+            or st.session_state.get("atlas_council")):
+        # These narrative outputs belong to the old plan; hiding them avoids
+        # showing conclusions that contradict the current questionnaire.
+        st.session_state.pop("atlas_final_advice", None)
+        st.session_state.pop("atlas_council", None)
+        st.session_state["atlas_final_advice_cleared"] = True
 st.subheader(t("res.title", lang, tier=profile.tier,
                tier_label=tier_label(profile.tier_info, lang),
                score=profile.score, segment=segment_label(plan.segment, lang),
@@ -702,28 +741,25 @@ st.caption(t("fa.intro", lang))
 _fa_col1, _fa_col2 = st.columns([1, 3])
 with _fa_col1:
     _gen_fa = st.button(t("fa.generate", lang), key="gen_final_advice", type="primary")
-if _gen_fa:
+if st.session_state.pop("atlas_final_advice_cleared", False) and not _gen_fa:
+    st.info(t("fa.inputs_changed", lang))
+if _gen_fa and _plan_stale:
+    st.error(t("common.stale_plan", lang))
+elif _gen_fa:
     from invest_agent.final_advice import build_final_advice  # noqa: E402
-    from invest_agent.global_base import AssetProfile  # noqa: E402
-    # reuse asset profile from the Global Basing section if provided
-    _ap_fa = AssetProfile(asset_types=["cash_deposit", "cn_fund"],
-                          total_capital=float(capital))
-    if st.session_state.get("atlas_asset_profile"):
-        from dataclasses import replace as _dc_replace  # noqa: E402
-        # Keep the user's asset mix, but use the current capital: otherwise a
-        # capital change followed by "generate plan" leaves final advice using
-        # the old capital until the user re-runs the basing panel.
-        _ap_fa = _dc_replace(
-            st.session_state["atlas_asset_profile"],
-            total_capital=float(capital),
-            liquidity_need=_liquidity_from_q8(),
-        )
-    with st.spinner(t("fa.spinner", lang)):
-        try:
-            _fa = build_final_advice(plan, profile, _ap_fa, provider_name=provider)
-            st.session_state["atlas_final_advice"] = _fa
-        except Exception as _fae:  # noqa: BLE001
-            st.session_state["atlas_final_advice"] = {"error": str(_fae)}
+    if float(_ap_capital) < float(capital):
+        st.error(t("base.capital_conflict", lang, capital=capital))
+    else:
+        # Build from the visible basing inputs every time, so final advice
+        # cannot silently use stale/absent asset-profile values.
+        _ap_fa = _current_asset_profile()
+        st.session_state["atlas_asset_profile"] = _ap_fa
+        with st.spinner(t("fa.spinner", lang)):
+            try:
+                _fa = build_final_advice(plan, profile, _ap_fa, provider_name=provider)
+                st.session_state["atlas_final_advice"] = _fa
+            except Exception as _fae:  # noqa: BLE001
+                st.session_state["atlas_final_advice"] = {"error": str(_fae)}
 _fa = st.session_state.get("atlas_final_advice")
 if _fa and not _fa.get("error"):
     from invest_agent.global_base import GLOBAL_BASES  # noqa: E402
@@ -819,7 +855,9 @@ st.caption(t("council.intro", lang))
 _c_col1, _c_col2 = st.columns([1, 3])
 with _c_col1:
     _gen_council = st.button(t("council.generate", lang), key="gen_council")
-if _gen_council:
+if _gen_council and _plan_stale:
+    st.error(t("common.stale_plan", lang))
+elif _gen_council:
     with st.spinner(t("council.spinner", lang)):
         try:
             from invest_agent.tools import AdvisorContext, build_tools  # noqa: E402
@@ -1400,6 +1438,9 @@ with st.expander(t("ff.title", lang)):
                                  reason=_ev.get("reason", "—")))
                 else:
                     st.markdown(f"**{t('ff.eval_title', lang)}**")
+                    if _ev.get("provider") and _ev["provider"] != provider:
+                        st.warning(t("common.provider_stale", lang,
+                                     old=_ev["provider"], new=provider))
                     st.dataframe([{
                         t("ff.ic", lang): f"{_ev['mean_ic']:+.3f}",
                         t("ff.icir", lang): f"{_ev['icir']:+.2f}",
@@ -1447,6 +1488,9 @@ with st.expander(t("custom.title", lang)):
                     st.warning(t("ff.error", lang, err=_ce))
                     _cp = None
         if _cp and _cp.get("available"):
+            if _cp.get("provider") and _cp["provider"] != provider:
+                st.warning(t("common.provider_stale", lang,
+                             old=_cp["provider"], new=provider))
             st.caption(t("custom.meta", lang, ts=_cp.get("generated_at", "—"),
                          n=_cp.get("n_factors", 0),
                          months=_cp.get("recent_months", 6)))

@@ -176,12 +176,14 @@ def profile_from_answers(
             notes.extend(reasons)
             adjusted = max(0.0, min(100.0, base + adj))
             text_tier = tier_from_score(adjusted)
-            # Free text is descriptive evidence, not a way to bypass the
-            # structured suitability questionnaire. It may lower the tier
-            # (more conservative) but never raise it above the questionnaire;
-            # otherwise the sidebar/notes and the questionnaire visibly
-            # contradict each other.
-            if _TIER_ORDER[text_tier] > _TIER_ORDER[base_tier]:
+            questionnaire_complete = len(answers) == len(QUESTIONS)
+            # Free text is descriptive evidence, not a way to bypass a
+            # *completed* structured suitability questionnaire. It may lower
+            # the tier (more conservative) but never raise it above a complete
+            # questionnaire; incomplete questionnaires (conversational/LLM
+            # profiling) still let free text set the tier.
+            if (questionnaire_complete
+                    and _TIER_ORDER[text_tier] > _TIER_ORDER[base_tier]):
                 tier = base_tier
                 capped_score = risk_tiers()[base_tier]["score_range"][1]
                 score = min(adjusted, float(capped_score))
@@ -193,6 +195,8 @@ def profile_from_answers(
                 score = adjusted
                 tier = text_tier
                 notes.append(f"adjusted score={score}")
+                if not questionnaire_complete:
+                    notes.append("questionnaire incomplete; free-text adjustment not capped")
     if horizon_years is None and 5 in answers:
         horizon_years = {0: 1, 1: 2, 2: 4, 3: 7}[max(0, min(int(answers[5]), 3))]
     return RiskProfile(

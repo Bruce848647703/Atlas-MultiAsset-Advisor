@@ -178,3 +178,49 @@ def test_stale_result_warning_names_both_tiers(dashboard):
              if "generated for" in w.value and old_tier in w.value
              and new_tier in w.value]
     assert stale
+
+
+def test_basing_input_change_clears_advice_and_flags_bases(dashboard):
+    at = dashboard
+    _button(at, "Generate plan").click().run()
+    _button(at, "Generate basing advice").click().run()
+    assert not at.exception
+    _button(at, "Generate final advice").click().run()
+    assert not at.exception
+    assert "atlas_final_advice" in at.session_state
+
+    next(s for s in at.slider if s.key == "ap_overseas_pct").set_value(20).run()
+    assert not at.exception
+    assert "atlas_final_advice" not in at.session_state
+    assert any("inputs changed" in i.value for i in at.info)
+    assert any("regenerate it" in w.value for w in at.warning)
+
+
+def test_plan_input_change_clears_narrative_outputs(dashboard):
+    at = dashboard
+    _button(at, "Generate plan").click().run()
+    _button(at, "Generate final advice").click().run()
+    _button(at, "Convene council").click().run()
+    assert "atlas_final_advice" in at.session_state
+    assert "atlas_council" in at.session_state
+
+    next(t for t in at.text_input if t.key == "free_text").set_value(
+        "我亏不起本金").run()
+    assert not at.exception
+    assert "atlas_final_advice" not in at.session_state
+    assert "atlas_council" not in at.session_state
+    assert any("inputs changed" in i.value for i in at.info)
+
+
+def test_stale_plan_blocks_final_advice_and_council(dashboard):
+    at = dashboard
+    _button(at, "Generate plan").click().run()
+    next(t for t in at.text_input if t.key == "free_text").set_value(
+        "我亏不起本金").run()
+    _button(at, "Generate final advice").click().run()
+    assert not at.exception
+    assert "atlas_final_advice" not in at.session_state
+    _button(at, "Convene council").click().run()
+    assert not at.exception
+    assert "atlas_council" not in at.session_state
+    assert any("regenerate the plan" in e.value for e in at.error)

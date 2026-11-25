@@ -76,6 +76,9 @@ def _profile_summary(ctx: AdvisorContext) -> Dict[str, Any]:
     return {
         "tier": p.tier, "tier_label": p.tier_info["label_zh"],
         "score": p.score, "capital": p.capital,
+        "base_tier": p.base_tier, "base_score": p.base_score,
+        "text_tier": p.text_tier, "text_adjustment": p.text_adjustment,
+        "tier_capped": p.tier_capped,
         "horizon_years": p.horizon_years,
         "segment": segment_for_capital(p.capital),
         "class_caps": accessible_classes(p),

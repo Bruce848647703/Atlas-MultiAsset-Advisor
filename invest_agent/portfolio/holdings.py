@@ -30,6 +30,7 @@ MAX_CSV_BYTES = 5 * 1024 * 1024      # 5 MB is far beyond a retail holdings file
 MAX_CSV_ROWS = 2000                 # avoids pathological uploads freezing the UI
 MIN_FX_TO_CNY = 0.001               # JPY/CNY is ~0.05; allow tiny but sane
 MAX_FX_TO_CNY = 50.0                # covers KWD/BHD; a fat-fingered 72 is caught
+MAX_MARKET_VALUE_CNY = 1e15         # 1 quadrillion CNY: far beyond any retail book
 _ALIASES = {
     "symbol": {"symbol", "ticker", "asset", "asset_id", "code", "代码", "标的"},
     "market_value": {"market_value", "value", "amount", "市值", "金额"},
@@ -200,6 +201,10 @@ def parse_holdings(rows: Iterable[Dict[str, Any]],
                 f"({MIN_FX_TO_CNY:g}-{MAX_FX_TO_CNY:g})，请检查汇率")
             continue
         market_value_cny = market_value * fx
+        if not (0 < market_value_cny <= MAX_MARKET_VALUE_CNY):
+            errors.append(
+                f"row {row_no}: 市值换算后超出合理范围，请检查市值/汇率/份额")
+            continue
 
         existing = holdings.get(asset.id)
         if existing:
