@@ -196,6 +196,25 @@ def test_basing_input_change_clears_advice_and_flags_bases(dashboard):
     assert any("regenerate it" in w.value for w in at.warning)
 
 
+def test_glide_path_panel_and_report(dashboard):
+    at = dashboard
+    _button(at, "Generate plan").click().run()
+    next(n for n in at.number_input if n.key == "glide_target").set_value(
+        1_200_000).run()
+    _button(at, "Build glide path").click().run()
+    assert not at.exception
+    glide = at.session_state["atlas_glide_path"]
+    assert glide["available"] is True
+    assert "Goal Plan & Glide Path" in _report_text(at)
+
+    next(t for t in at.text_input if t.key == "free_text").set_value(
+        "我亏不起本金").run()
+    assert "atlas_glide_path" not in at.session_state
+
+    _button(at, "Generate plan").click().run()
+    assert "atlas_glide_path" not in at.session_state
+
+
 def test_plan_input_change_clears_narrative_outputs(dashboard):
     at = dashboard
     _button(at, "Generate plan").click().run()

@@ -111,6 +111,11 @@ _EN_CLASS = {
     "commodity": "Commodities", "equity_cn": "China equities",
     "equity_global": "Global equities", "crypto": "Crypto", "futures": "Futures",
 }
+_ZH_CLASS = {
+    "cash": "现金", "fixed_income": "固收", "hybrid": "固收+",
+    "commodity": "商品", "equity_cn": "A股", "equity_global": "全球股票",
+    "crypto": "加密", "futures": "期货",
+}
 _EN_OBJECTIVE = {
     "max_sharpe": "Max Sharpe", "mean_variance": "Mean-variance",
     "min_vol": "Min volatility", "risk_parity": "Risk parity", "equal": "Equal weight",
@@ -301,6 +306,74 @@ def _render_attribution_en(att: Dict) -> str:
     return "\n".join(L)
 
 
+def _render_glide_path_zh(g: Dict) -> str:
+    if not g.get("available"):
+        return ""
+    s, cur, ter = g["summary"], g["current"], g["terminal"]
+    L = ["### 目标规划与 Glide Path\n",
+         "| 指标 | 数值 |\n|---|---|",
+         f"| 规划年限 | {g['years']} 年 |",
+         f"| 当前 / 期末风险资产 | {cur['risky_share']:.0%} → {ter['risky_share']:.0%} |",
+         f"| 当前 / 期末预期年化 | {cur['expected_return']:.1%} → "
+         f"{ter['expected_return']:.1%} |",
+         f"| 预计终值 / 投入本金 | ¥{s['projected_value']:,.0f} / "
+         f"¥{s['principal']:,.0f} |"]
+    if g.get("target_value", 0) > 0:
+        L.append(f"| 目标金额 / 进度 | ¥{g['target_value']:,.0f} / "
+                 f"{s['target_progress']:.1%} |")
+        if s.get("target_gap", 0) is not None:
+            L.append(f"| 目标缺口 | ¥{s['target_gap']:,.0f} |")
+        if s.get("required_monthly") is not None:
+            L.append(f"| 达标所需月投 | ¥{s['required_monthly']:,.0f} |")
+        req = s.get("required_ann_return")
+        L.append(f"| 当前投入所需年化 | {'—' if req is None else f'{req:.2%}'} |")
+    L.append("\n| 年度 | 权益 | 防御 | 预期收益 | 预计价值 | 目标进度 |")
+    L.append("|---|---|---|---|---|---|")
+    for row in g["glide"]:
+        cw = row["class_weights"]
+        defensive = sum(cw.get(c, 0.0) for c in ("cash", "fixed_income", "hybrid"))
+        prog = "—" if row.get("target_progress") is None else f"{row['target_progress']:.1%}"
+        L.append(f"| {row['year']} | {row['equity_share']:.0%} | {defensive:.0%} "
+                 f"| {row['expected_return']:.1%} | ¥{row['projected_value']:,.0f} | {prog} |")
+    L.append("\n_线性降风险、月度定投、确定性估算；未计税费与交易摩擦，仅供研究参考。_\n")
+    return "\n".join(L)
+
+
+def _render_glide_path_en(g: Dict) -> str:
+    if not g.get("available"):
+        return ""
+    s, cur, ter = g["summary"], g["current"], g["terminal"]
+    L = ["### Goal Plan & Glide Path\n",
+         "| Metric | Value |\n|---|---|",
+         f"| Horizon | {g['years']} years |",
+         f"| Risky share now / end | {cur['risky_share']:.0%} → {ter['risky_share']:.0%} |",
+         f"| Expected return now / end | {cur['expected_return']:.1%} → "
+         f"{ter['expected_return']:.1%} |",
+         f"| Projected terminal / principal | ¥{s['projected_value']:,.0f} / "
+         f"¥{s['principal']:,.0f} |"]
+    if g.get("target_value", 0) > 0:
+        L.append(f"| Target / progress | ¥{g['target_value']:,.0f} / "
+                 f"{s['target_progress']:.1%} |")
+        if s.get("target_gap") is not None:
+            L.append(f"| Target gap | ¥{s['target_gap']:,.0f} |")
+        if s.get("required_monthly") is not None:
+            L.append(f"| Required monthly contribution | ¥{s['required_monthly']:,.0f} |")
+        req = s.get("required_ann_return")
+        L.append(f"| Required annual return at current contribution | "
+                 f"{'—' if req is None else f'{req:.2%}'} |")
+    L.append("\n| Year | Equity | Defensive | Expected return | Projected value | Progress |")
+    L.append("|---|---|---|---|---|---|")
+    for row in g["glide"]:
+        cw = row["class_weights"]
+        defensive = sum(cw.get(c, 0.0) for c in ("cash", "fixed_income", "hybrid"))
+        prog = "—" if row.get("target_progress") is None else f"{row['target_progress']:.1%}"
+        L.append(f"| {row['year']} | {row['equity_share']:.0%} | {defensive:.0%} "
+                 f"| {row['expected_return']:.1%} | ¥{row['projected_value']:,.0f} | {prog} |")
+    L.append("\n_Linear de-risking, month-end contributions, deterministic estimate; "
+             "taxes/fees excluded. Research only._\n")
+    return "\n".join(L)
+
+
 def _metrics_table_en(plan: Plan) -> str:
     m, b = plan.backtest, {} if not plan.bench_backtest else plan.bench_backtest
     rows = [
@@ -329,7 +402,8 @@ def _build_report_en(plan: Plan, chart_paths: Optional[Dict[str, str]],
                      analyst_council: Optional[Dict],
                      holdings: Optional[Dict] = None,
                      monte_carlo: Optional[Dict] = None,
-                     attribution: Optional[Dict] = None) -> str:
+                     attribution: Optional[Dict] = None,
+                     glide_path: Optional[Dict] = None) -> str:
     """English report from the same deterministic plan data (no Chinese prose)."""
     from .data.universe import build_universe as _bu
     from .global_base import GLOBAL_BASES
@@ -477,6 +551,8 @@ def _build_report_en(plan: Plan, chart_paths: Optional[Dict[str, str]],
         L.append(_render_monte_carlo_en(monte_carlo))
     if attribution:
         L.append(_render_attribution_en(attribution))
+    if glide_path:
+        L.append(_render_glide_path_en(glide_path))
 
     L.append("## 3. Goal Projection\n")
     last = plan.projection[-1] if plan.projection else None
@@ -509,11 +585,12 @@ def build_report(plan: Plan, chart_paths: Optional[Dict[str, str]] = None,
                  analyst_council: Optional[Dict] = None,
                  holdings: Optional[Dict] = None,
                  monte_carlo: Optional[Dict] = None,
-                 attribution: Optional[Dict] = None) -> str:
+                 attribution: Optional[Dict] = None,
+                 glide_path: Optional[Dict] = None) -> str:
     if lang == "en":
         return _build_report_en(plan, chart_paths, final_advice, analyst_council,
                                 holdings=holdings, monte_carlo=monte_carlo,
-                                attribution=attribution)
+                                attribution=attribution, glide_path=glide_path)
     cfg = get_config()
     disclaimer = cfg["agent"]["disclaimer"].strip()
     name_of = {a.id: a.name_en for a in plan.assets}
@@ -608,6 +685,8 @@ def build_report(plan: Plan, chart_paths: Optional[Dict[str, str]] = None,
         L.append(_render_monte_carlo_zh(monte_carlo))
     if attribution:
         L.append(_render_attribution_zh(attribution))
+    if glide_path:
+        L.append(_render_glide_path_zh(glide_path))
 
     L.append("## 3. 目标投射 Goal Projection\n")
     last = plan.projection[-1] if plan.projection else None
