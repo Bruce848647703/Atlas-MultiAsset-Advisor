@@ -661,6 +661,7 @@ if run:
         # never shows stale final advice / council for a different allocation.
         st.session_state.pop("atlas_mc", None)
         st.session_state.pop("atlas_attribution", None)
+        st.session_state.pop("atlas_glide_path", None)
         st.session_state.pop("atlas_final_advice", None)
         st.session_state.pop("atlas_council", None)
     except InputValidationError as e:
@@ -681,11 +682,13 @@ _plan_stale = bool(res.get("_signature") and res["_signature"] != _input_signatu
 if _plan_stale:
     st.warning(t("gen.stale", lang, old=profile.tier, new=_risk_now.tier))
     if (st.session_state.get("atlas_final_advice")
-            or st.session_state.get("atlas_council")):
-        # These narrative outputs belong to the old plan; hiding them avoids
-        # showing conclusions that contradict the current questionnaire.
+            or st.session_state.get("atlas_council")
+            or st.session_state.get("atlas_glide_path")):
+        # These forward-looking outputs belong to the old plan; hiding them
+        # avoids conclusions that contradict the current questionnaire.
         st.session_state.pop("atlas_final_advice", None)
         st.session_state.pop("atlas_council", None)
+        st.session_state.pop("atlas_glide_path", None)
         st.session_state["atlas_final_advice_cleared"] = True
 st.subheader(t("res.title", lang, tier=profile.tier,
                tier_label=tier_label(profile.tier_info, lang),
@@ -1211,6 +1214,86 @@ with st.expander(t("attr.title", lang), expanded=False):
             } for k, v in (_risk.get("by_class") or {}).items()],
                 hide_index=True, use_container_width=True)
         st.caption(t("attr.note", lang))
+
+with st.expander(t("glide.title", lang), expanded=False):
+    from invest_agent.portfolio import glide_path as glide_lib  # noqa: E402
+    st.caption(t("glide.intro", lang))
+    _g1, _g2, _g3, _g4 = st.columns(4)
+    with _g1:
+        _g_target = st.number_input(
+            t("glide.target", lang), min_value=0, max_value=10**12,
+            value=int(st.session_state.get("glide_target_persist", 0)),
+            step=100_000, key="glide_target")
+        st.session_state["glide_target_persist"] = _g_target
+    with _g2:
+        _g_years = st.slider(
+            t("glide.years", lang), 1, 30,
+            int(st.session_state.get(
+                "glide_years_persist",
+                min(max(plan.profile.horizon_years, 1), 30))),
+            key="glide_years")
+        st.session_state["glide_years_persist"] = _g_years
+    with _g3:
+        _g_contrib = st.number_input(
+            t("glide.contrib", lang), min_value=0, max_value=100_000_000,
+            value=min(int(st.session_state.get(
+                "glide_contrib_persist", int(plan.monthly_contrib))), 100_000_000),
+            step=500, key="glide_contrib")
+        st.session_state["glide_contrib_persist"] = _g_contrib
+    with _g4:
+        _g_run = st.button(t("glide.run", lang), key="glide_run")
+    if _g_run:
+        with st.spinner(t("glide.spinner", lang)):
+            try:
+                st.session_state["atlas_glide_path"] = glide_lib.build(
+                    plan, target_value=float(_g_target), years=int(_g_years),
+                    monthly_contrib=float(_g_contrib))
+            except Exception as _ge:  # noqa: BLE001
+                st.warning(t("glide.error", lang, err=_ge))
+    _gp = st.session_state.get("atlas_glide_path")
+    if _gp and _gp.get("available"):
+        _gs, _gc, _gt = _gp["summary"], _gp["current"], _gp["terminal"]
+        _gr1, _gr2, _gr3, _gr4 = st.columns(4)
+        _gr1.metric(t("glide.projected", lang), f"¥{_gs['projected_value']:,.0f}")
+        _gr2.metric(t("glide.progress", lang),
+                    "—" if _gs.get("target_progress") is None
+                    else f"{_gs['target_progress']:.1%}")
+        _gr3.metric(t("glide.required", lang),
+                    "—" if _gs.get("required_monthly") is None
+                    else f"¥{_gs['required_monthly']:,.0f}")
+        _gr4.metric(t("glide.risky", lang),
+                    f"{_gc['risky_share']:.0%} → {_gt['risky_share']:.0%}")
+        if _gp.get("target_value", 0) > 0 and not _gs.get("on_track", True):
+            st.warning(t("glide.shortfall", lang,
+                         gap=_gs.get("target_gap", 0),
+                         monthly=_gs.get("required_monthly") or 0))
+        if _gp.get("target_value", 0) > 0:
+            _req = _gs.get("required_ann_return")
+            st.caption(t("glide.required_return", lang,
+                         value="—" if _req is None else f"{_req:.2%}"))
+        import pandas as _pd  # noqa: E402
+        _gchart = _pd.DataFrame({
+            t("glide.year", lang): [r["year"] for r in _gp["glide"]],
+            t("glide.projected", lang): [r["projected_value"] for r in _gp["glide"]],
+        }).set_index(t("glide.year", lang))
+        if _gp.get("target_value", 0) > 0:
+            _gchart[t("glide.target_col", lang)] = _gp["target_value"]
+        st.line_chart(_gchart, height=260)
+        _grows = []
+        for _r in _gp["glide"]:
+            _cw = _r["class_weights"]
+            _def = sum(_cw.get(c, 0.0) for c in ("cash", "fixed_income", "hybrid"))
+            _grows.append({
+                t("glide.year", lang): _r["year"],
+                t("glide.equity", lang): f"{_r['equity_share']:.0%}",
+                t("glide.defensive", lang): f"{_def:.0%}",
+                t("glide.ret", lang): f"{_r['expected_return']:.1%}",
+                t("glide.value", lang): f"¥{_r['projected_value']:,.0f}",
+                t("glide.progress", lang): "—" if _r.get("target_progress") is None
+                else f"{_r['target_progress']:.1%}",
+            })
+        st.dataframe(_grows, hide_index=True, use_container_width=True)
+        st.caption(t("glide.note", lang))
 
 st.subheader(t("universe.title", lang))
 st.caption(t("universe.intro", lang))
@@ -1799,6 +1882,7 @@ with st.expander(t("report.title", lang)):
                    analyst_council=_cc_rep,
                    holdings=st.session_state.get("atlas_holdings"),
                    monte_carlo=st.session_state.get("atlas_mc"),
-                   attribution=st.session_state.get("atlas_attribution"))
+                   attribution=st.session_state.get("atlas_attribution"),
+                   glide_path=st.session_state.get("atlas_glide_path"))
     _report_text = _re.sub(r"!\[([^\]]*)\]\(([^)]+)\)", _embed, _rep_src)
     st.markdown(to_hant(_report_text) if lang == "zh-Hant" else _report_text)

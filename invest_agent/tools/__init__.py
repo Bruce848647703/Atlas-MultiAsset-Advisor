@@ -606,6 +606,28 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
         except Exception as e:  # noqa: BLE001
             return {"error": f"monte carlo failed: {e}"}
 
+    def get_glide_path(args: Dict[str, Any]) -> Dict[str, Any]:
+        """目标导向的 Glide Path：逐年降风险 + 目标缺口/所需月投。"""
+        if ctx.plan is None:
+            return {"error": "请先生成配置方案 (build_investment_plan)。"}
+        try:
+            from ..portfolio import glide_path
+            target = finite_number(args.get("target_value", 0.0),
+                                   "目标金额 target_value",
+                                   minimum=0.0, maximum=1e12)
+            years = integer(args.get("years", ctx.plan.profile.horizon_years),
+                            "规划年限 years", minimum=1, maximum=glide_path.MAX_YEARS)
+            monthly = finite_number(
+                args.get("monthly_contrib", ctx.plan.monthly_contrib),
+                "每月投入 monthly_contrib", minimum=0.0, maximum=1e8)
+            return glide_path.build(
+                ctx.plan, target_value=target, years=years,
+                monthly_contrib=monthly)
+        except (ValueError, InputValidationError) as e:
+            return {"error": str(e)}
+        except Exception as e:  # noqa: BLE001
+            return {"error": f"glide path failed: {e}"}
+
     def analyze_holdings(args: Dict[str, Any]) -> Dict[str, Any]:
         """导入持仓行 -> X-Ray + 与当前方案的漂移/再平衡清单。"""
         try:
@@ -773,6 +795,14 @@ def build_tools(ctx: AdvisorContext) -> List[Tool]:
            "method": {"type": "string", "enum": ["bootstrap", "parametric"]},
            "target_value": {"type": "number", "minimum": 0}},
           [], run_monte_carlo),
+        T("get_glide_path",
+          "生成目标导向的 Glide Path：按规划年限把风险资产逐步降到期末目标，"
+          "逐年给出类别权重、预期收益和预计财富；有目标金额时返回目标进度、"
+          "缺口、达标所需月投与所需年化收益。",
+          {"target_value": {"type": "number", "minimum": 0},
+           "years": {"type": "integer", "minimum": 1, "maximum": 40},
+           "monthly_contrib": {"type": "number", "minimum": 0}},
+          [], get_glide_path),
         T("analyze_holdings",
           "导入当前持仓并对照目标方案：计算组合 X-Ray（类别/集中度/币种）、"
           "权重漂移、再平衡买卖清单、交易成本与适当性违规。"

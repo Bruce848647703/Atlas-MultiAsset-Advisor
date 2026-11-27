@@ -204,9 +204,11 @@ S = {
                  "Fuses the quant allocation × class views × global regime × global bases into one "
                  "trend-aligned recommendation with a basing map and action list."),
     "fa.generate": ("生成最终建议", "Generate final advice"),
-    "fa.inputs_changed": ("问卷/方案/资产画像输入已修改，上一份最终建议/智囊团已清空；请重新生成。",
+    "fa.inputs_changed": ("问卷/方案/资产画像输入已修改，上一份最终建议/智囊团/目标规划已清空；"
+                          "请重新生成。",
                           "Questionnaire/plan/basing inputs changed; the previous final "
-                          "advice / analyst council was cleared. Generate it again."),
+                          "advice / analyst council / glide path was cleared. "
+                          "Generate it again."),
     "fa.spinner": ("融合中：大类观点 + 全球局势 + base 落位 ...", "Fusing class views, global regime and basing..."),
     "fa.thesis": ("**研判主线**：{thesis}", "**Thesis**: {thesis}"),
     "fa.overlays": ("全球局势：{regime}（风险偏好 {appetite:+.2f}）· 议题：{themes}",
@@ -370,6 +372,36 @@ S = {
     "attr.note": ("静态权重近似归因，仅用于研究解释，不构成投资建议。",
                   "Static-weight approximate attribution, for research explanation only, not "
                   "investment advice."),
+    "glide.title": ("目标规划 / Glide Path", "Goal Plan & Glide Path"),
+    "glide.intro": ("把当前方案按年限逐步降风险，并估算目标进度、缺口与达标所需投入。"
+                    "确定性估算，不含税费与交易摩擦。",
+                    "De-risks the current plan over the horizon and estimates goal progress, "
+                    "shortfall and required contribution. Deterministic; taxes/fees excluded."),
+    "glide.target": ("目标金额（0=不计）", "Target value (0=off)"),
+    "glide.years": ("规划年限", "Horizon (years)"),
+    "glide.contrib": ("每月投入", "Monthly contribution"),
+    "glide.run": ("生成目标规划", "Build glide path"),
+    "glide.spinner": ("计算逐年降风险路径与目标缺口...",
+                      "Building the de-risking path and goal gap..."),
+    "glide.error": ("目标规划失败：{err}", "Glide path failed: {err}"),
+    "glide.projected": ("预计终值", "Projected terminal"),
+    "glide.progress": ("目标进度", "Target progress"),
+    "glide.required": ("达标所需月投", "Required monthly"),
+    "glide.risky": ("风险资产占比", "Risky share"),
+    "glide.shortfall": ("按当前投入预计缺口 ¥{gap:,.0f}；需约 ¥{monthly:,.0f}/月才能达标。",
+                        "Projected shortfall ¥{gap:,.0f}; about ¥{monthly:,.0f}/month "
+                        "is needed to reach the target."),
+    "glide.required_return": ("保持当前月投所需的年化收益：{value}",
+                              "Annual return needed at the current contribution: {value}"),
+    "glide.year": ("年度", "Year"),
+    "glide.target_col": ("目标", "Target"),
+    "glide.equity": ("权益", "Equity"),
+    "glide.defensive": ("防御", "Defensive"),
+    "glide.ret": ("预期收益", "Expected return"),
+    "glide.value": ("预计价值", "Projected value"),
+    "glide.note": ("线性降风险、月末定投、确定性估算；未计税费与交易摩擦，仅供研究参考。",
+                   "Linear de-risking, month-end contributions, deterministic estimate; "
+                   "taxes/fees excluded. Research only."),
     "alloc.title": ("配置明细", "Allocation"),
     "alloc.asset": ("资产", "Asset"),
     "alloc.weight": ("权重", "Weight"),
