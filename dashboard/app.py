@@ -1885,4 +1885,43 @@ with st.expander(t("report.title", lang)):
                    attribution=st.session_state.get("atlas_attribution"),
                    glide_path=st.session_state.get("atlas_glide_path"))
     _report_text = _re.sub(r"!\[([^\]]*)\]\(([^)]+)\)", _embed, _rep_src)
-    st.markdown(to_hant(_report_text) if lang == "zh-Hant" else _report_text)
+    _report_out = to_hant(_report_text) if lang == "zh-Hant" else _report_text
+    st.markdown(_report_out)
+
+    # Standalone exports: self-contained HTML (printable to PDF), Markdown and
+    # a reproducible JSON snapshot of the exact plan + modules shown above.
+    from invest_agent import export as export_lib  # noqa: E402
+    _snap = export_lib.snapshot(
+        plan, profile=profile,
+        final_advice=(_fa_rep if _fa_rep and not _fa_rep.get("error") else None),
+        analyst_council=_cc_rep,
+        holdings=st.session_state.get("atlas_holdings"),
+        monte_carlo=st.session_state.get("atlas_mc"),
+        attribution=st.session_state.get("atlas_attribution"),
+        glide_path=st.session_state.get("atlas_glide_path"),
+        lang=lang, provider=provider)
+    _export_title = t("export.title", lang, tier=profile.tier,
+                      strategy=strategy_name(plan.strategy, lang))
+    _export_sub = t("export.subtitle", lang, ts=_snap["generated_at"],
+                    provider=provider)
+    _dl1, _dl2, _dl3 = st.columns(3)
+    with _dl1:
+        st.download_button(
+            t("export.html", lang),
+            export_lib.to_html(_report_out, title=_export_title,
+                               subtitle=_export_sub,
+                               footer=t("export.footer", lang), lang=lang),
+            file_name=export_lib.timestamped_name("atlas_report", "html"),
+            mime="text/html", key="dl_report_html")
+    with _dl2:
+        st.download_button(
+            t("export.md", lang), _report_out,
+            file_name=export_lib.timestamped_name("atlas_report", "md"),
+            mime="text/markdown", key="dl_report_md")
+    with _dl3:
+        st.download_button(
+            t("export.json", lang),
+            json.dumps(_snap, ensure_ascii=False, indent=2),
+            file_name=export_lib.timestamped_name("atlas_snapshot", "json"),
+            mime="application/json", key="dl_report_json")
+    st.caption(t("export.note", lang))
