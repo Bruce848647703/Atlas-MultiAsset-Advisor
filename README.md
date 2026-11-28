@@ -444,6 +444,18 @@ Turns the current allocation into a goal-oriented plan:
   report sections, and the `get_glide_path` LLM tool (27th tool).
 - Deterministic and assumption-based (no taxes/fees), not a guarantee.
 
+### Shareable report export (`export.py`)
+
+The dashboard report exports three artefacts without any extra service:
+
+- **Standalone HTML** with embedded charts and print-friendly CSS
+  (browser → Print → PDF);
+- **Markdown** source;
+- **JSON snapshot** containing the profile, plan weights, expected metrics and
+  every displayed research module (final advice, council, holdings, Monte
+  Carlo, attribution, glide path) for reproducibility.
+- Filenames are timestamped; no external assets are fetched when opened.
+
 ### Strategy Layer (amplify strengths, don't pile assets) ★
 
 Rather than cramming 26 assets into one portfolio, six philosophy-driven strategies, each with:
@@ -478,7 +490,7 @@ pip install -r requirements.txt          # numpy/pandas/scipy/matplotlib/openai/
 
 make demo        # offline demo: mass / affluent / HNW → examples/demo_outputs/
 make lint        # ruff static checks (pip install -r requirements-dev.txt)
-make test        # unit + integration tests (266)
+make test        # unit + integration tests (270)
 make eval        # compliance gate (weight legality / caps / disclaimer / segment access)
 make sft         # generate 400 SFT conversations → training/sft_data/train.jsonl
 
@@ -573,10 +585,10 @@ invest_agent/
   advisor.py      # strategy-driven allocation pipeline
   portfolio/      # metrics / optimizer(MV+maxSharpe+minVol+riskParity) /
                   #   backtest(walk-forward) / tactical(momentum+trend gate) /
-                  #   rebalance(target-vs-current drift monitor)
+                  #   rebalance(target-vs-current drift monitor) / glide_path
   data/           # base / synthetic / akshare / kairos / universe (26 assets)
   tools/          # 27 tools exposed to the LLM
-  charts.py, report.py, cli.py
+  charts.py, report.py, cli.py, export.py
 config/           # assets.yaml, risk_profiles.yaml, agent.yaml
 integrations/kairos_strategies.py  # ★ 106-strategy lab / cached leaderboard
 scripts/run_demo.py         dashboard/app.py (streamlit)
@@ -587,7 +599,7 @@ docs/               # architecture, portfolio math, factors, operations and test
 training/         # README / generate_sft_data.py / build_real_dataset.py /
                   # eval/(compliance + requirement benchmark) / finetune/
 examples/factor_library_sample/  # factor-library sample (full lib: ATLAS_FACTOR_DIR)
-tests/            # 266 tests (offline, synthetic provider)
+tests/            # 270 tests (offline, synthetic provider)
 .streamlit/config.toml + dashboard/style.py  # Jane Street-style light theme
 dashboard/i18n.py  # zh-Hans / en / zh-Hant UI catalog + entity labels
 .github/workflows/ci.yml  # GitHub Actions: lint + tests (3.10/3.12/3.13) + gates
